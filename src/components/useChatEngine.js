@@ -140,7 +140,6 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
     const topic = msg.slots.topic || round?.default_topic || "Interview";
     const mode = msg.slots.mode || "Video";
     const interview = {
-      application_id: msg.candidate.application.id || msg.candidate.application.application_id,
       rh_id: msg.candidate.candidate.rh_id,
       job_id: msg.candidate.job.job_id,
       round_name: msg.slots.round_name,
@@ -151,11 +150,11 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
       end_time: msg.slots.time.end,
       status: "scheduled",
       candidate_invited: true,
-      scheduled_by: currentUser.id,
+      scheduled_by: currentUser.employee_id || currentUser.id,
       created_at: new Date().toISOString()
     };
     const id = await DB.add("interviews", interview);
-    await DB.add("interview_history", { interview_id: id, action: "scheduled", at: new Date().toISOString(), by: currentUser.id });
+    await DB.add("interview_history", { interview_id: id, action: "scheduled", at: new Date().toISOString(), by_user: currentUser.id });
     await refreshSnapshot();
     setPending(null);
     addMessage({
