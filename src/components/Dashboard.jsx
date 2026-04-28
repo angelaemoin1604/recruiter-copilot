@@ -136,26 +136,38 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
     return entries;
   }, [recentScheduled]);
 
-  // Pending requests "needs your attention"
+  // Pending requests "needs your attention" — updates live with snapshot
   const needs = useMemo(() => {
     const items = [];
+    // 1. Pending timeslot requests
     for (const r of snapshot.time_slot_request.filter(r => r.status === "pending").slice(0, 3)) {
       const emp = snapshot.employees.find(e => e.employee_id === r.employee_id);
       items.push({ kind: "pending_slot", emp, request: r });
     }
-    // Idle candidates (>7 days since application, no scheduled interview)
+    // 2. Recently scheduled interviews (last 3) for awareness
+    const recentlyBooked = [...snapshot.interviews]
+      .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
+      .slice(0, 3);
+    for (const i of recentlyBooked) {
+      if (items.length >= 5) break;
+      const cand = snapshot.candidates.find(c => c.rh_id === i.rh_id);
+      const interviewer = snapshot.employees.find(e => e.employee_id === i.interviewer_id);
+      const job = snapshot.jobs.find(j => j.job_id === i.job_id);
+      items.push({ kind: "recent_schedule", interview: i, cand, interviewer, job });
+    }
+    // 3. Idle candidates (no interview scheduled)
     const scheduledRhIds = new Set(snapshot.interviews.map(i => i.rh_id));
-    const cutoff = new Date("2026-04-15");
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
     for (const a of snapshot.applications) {
+      if (items.length >= 7) break;
       if (scheduledRhIds.has(a.rh_id)) continue;
       if (new Date(a.applied_at) < cutoff) {
         const cand = snapshot.candidates.find(c => c.rh_id === a.rh_id);
         const job = snapshot.jobs.find(j => j.job_id === a.job_id);
         items.push({ kind: "idle_candidate", cand, job, app: a });
-        if (items.length >= 5) break;
       }
     }
-    return items.slice(0, 5);
+    return items.slice(0, 7);
   }, [snapshot]);
 
   const sparkData = [3, 5, 4, 7, 6, 8, stats.scheduled || 9];
@@ -237,11 +249,11 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
       {/* STATS ROW */}
       <div className="grid grid-cols-5 gap-3 mb-6">
         {[
-          { label: "Candidates", value: stats.candidates, color: "blue", Icon: Users, spark: [12, 15, 14, 18, 17, 20, stats.candidates] },
-          { label: "Active applications", value: stats.activeApps, color: "indigo", Icon: Briefcase, spark: [8, 11, 10, 13, 12, 14, stats.activeApps] },
-          { label: "Certified panel", value: stats.interviewers, color: "purple", Icon: CheckCircle2, spark: [6, 7, 7, 8, 8, 9, stats.interviewers] },
-          { label: "Scheduled", value: stats.scheduled, color: "emerald", Icon: Calendar, spark: sparkData },
-          { label: "Pending requests", value: stats.pending, color: "amber", Icon: Clock, spark: [1, 2, 1, 2, 3, 2, stats.pending] }
+          { label: "Candidates", value: stats.candidates, color: "blue", Icon: Users, spark: [12, 15, 14, 18, 17, 20, stats.candidates], tab: "candidates", tooltip: "View all candidates" },
+          { label: "Active applications", value: stats.activeApps, color: "indigo", Icon: Briefcase, spark: [8, 11, 10, 13, 12, 14, stats.activeApps], tab: "candidates", tooltip: "View active applications" },
+          { label: "Certified panel", value: stats.interviewers, color: "purple", Icon: CheckCircle2, spark: [6, 7, 7, 8, 8, 9, stats.interviewers], tab: "employees", tooltip: "View certified panelists" },
+          { label: "Scheduled", value: stats.scheduled, color: "emerald", Icon: Calendar, spark: sparkData, tab: "interviews", tooltip: "View scheduled interviews" },
+          { label: "Pending requests", value: stats.pending, color: "amber", Icon: Clock, spark: [1, 2, 1, 2, 3, 2, stats.pending], tab: "employees", tooltip: "View pending timeslot requests" }
         ].map(s => {
           const Icon = s.Icon;
           const colorClass = {
@@ -252,7 +264,12 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
             amber: { ring: "ring-amber-200", icon: "text-amber-700", bg: "bg-amber-50", spark: "#f59e0b" }
           }[s.color];
           return (
-            <div key={s.label} className="bg-white border-2 border-slate-200 rounded-xl p-4 hover:shadow-lg hover:-translate-y-0.5 transition group">
+            <button
+              key={s.label}
+              onClick={() => onSwitchTab(s.tab)}
+              title={s.tooltip}
+              className="bg-white border-2 border-slate-200 rounded-xl p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-blue-300 transition group text-left w-full cursor-pointer"
+            >
               <div className="flex items-start justify-between mb-3">
                 <div className={`w-9 h-9 rounded-lg ${colorClass.bg} flex items-center justify-center group-hover:scale-110 transition`}>
                   <Icon size={18} className={colorClass.icon} />
@@ -261,7 +278,8 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
               </div>
               <div className="text-3xl font-black text-slate-900 mb-1"><CountUp to={s.value} /></div>
               <div className="text-xs font-semibold text-slate-700">{s.label}</div>
-            </div>
+              <div className="text-[10px] text-blue-600 font-semibold mt-1 opacity-0 group-hover:opacity-100 transition">Click to view →</div>
+            </button>
           );
         })}
       </div>
@@ -370,29 +388,37 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
               </div>
             )}
             {needs.map((item, i) => (
-              <div key={i} className="p-3 bg-amber-50 border border-amber-200 rounded-md text-xs">
+              <div key={i} className={`p-3 border rounded-md text-xs ${
+                item.kind === "recent_schedule"
+                  ? "bg-emerald-50 border-emerald-200"
+                  : item.kind === "pending_slot"
+                  ? "bg-amber-50 border-amber-200"
+                  : "bg-orange-50 border-orange-200"
+              }`}>
                 {item.kind === "pending_slot" && (
                   <>
-                    <div className="font-bold text-slate-900 mb-0.5">Pending timeslot request</div>
+                    <div className="font-bold text-slate-900 mb-0.5">⏳ Pending timeslot request</div>
                     <div className="text-slate-800">{item.emp?.name} on {formatDate(item.request.slot_date)} {item.request.start_time}</div>
                     <button onClick={() => onSwitchTab("employees")} className="mt-1.5 text-blue-700 hover:text-blue-900 font-semibold">Review →</button>
                   </>
                 )}
+                {item.kind === "recent_schedule" && (
+                  <>
+                    <div className="font-bold text-emerald-900 mb-0.5">✅ Interview scheduled</div>
+                    <div className="text-slate-800">{item.cand?.name} · {item.job?.title}</div>
+                    <div className="text-slate-700">{formatDate(item.interview.slot_date)} {formatTime(item.interview.start_time)} with {item.interviewer?.name}</div>
+                    <button onClick={() => onSwitchTab("interviews")} className="mt-1.5 text-blue-700 hover:text-blue-900 font-semibold">View in Interviews →</button>
+                  </>
+                )}
                 {item.kind === "idle_candidate" && (
                   <>
-                    <div className="font-bold text-slate-900 mb-0.5">{item.cand?.name} is idle</div>
-                    <div className="text-slate-800">{item.job?.title} · applied {formatDate(item.app.applied_at)}</div>
-                    <button 
-                      onClick={() => {
-                        if (onScheduleCandidate) {
-                          onScheduleCandidate(item.cand, item.job, item.app);
-                        } else {
-                          onOpenDock();
-                        }
-                      }} 
+                    <div className="font-bold text-slate-900 mb-0.5">⚠️ {item.cand?.name} needs scheduling</div>
+                    <div className="text-slate-800">{item.job?.title} · applied {formatDate(item.app?.applied_at)}</div>
+                    <button
+                      onClick={() => onScheduleCandidate ? onScheduleCandidate(item.cand, item.job, item.app) : onOpenDock()}
                       className="mt-1.5 text-blue-700 hover:text-blue-900 font-semibold"
                     >
-                      Schedule →
+                      Schedule now →
                     </button>
                   </>
                 )}

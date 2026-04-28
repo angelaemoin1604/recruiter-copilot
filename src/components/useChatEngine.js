@@ -1,26 +1,67 @@
 // ============================================================
 // useChatEngine.js - Shared chat state + scheduling logic
-// Used by both the floating mini-modal and the right-side dock.
 // ============================================================
 import { useState, useCallback } from "react";
-import { processMessage, resolveInterviewer, checkChosenInterviewer, getEmployeeRounds } from "../resolution.js";
+import { processMessage, resolveInterviewer, checkChosenInterviewer } from "../resolution.js";
 import * as DB from "../db.js";
 
-// Generate dynamic example date: 3-4 days from today
-function getExampleDate() {
+// All real candidate/interviewer/job/topic combinations for rotating suggestions
+const SCHEDULE_SUGGESTIONS = [
+  { candidate: "Anjali Sharma", rhid: "RH00081234", job: "App Dev II", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Telephonic", topic: "Java Coding" },
+  { candidate: "Vikram Nair", rhid: "RH00081235", job: "App Dev II", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Video", topic: "System Design" },
+  { candidate: "Priya Menon", rhid: "RH00081236", job: "Senior Java Developer", round: "Interview 2", interviewer: "Priya Iyer", mode: "In-person", topic: "Spring Boot" },
+  { candidate: "Rohan Das", rhid: "RH00081240", job: "App Dev II", round: "Interview 2", interviewer: "Rahul Verma", mode: "Video", topic: "Microservices" },
+  { candidate: "Sneha Pillai", rhid: "RH00081241", job: "Frontend Engineer", round: "Interview 1", interviewer: "Vikram Singh", mode: "Telephonic", topic: "React & TypeScript" },
+  { candidate: "Arjun Kapoor", rhid: "RH00081245", job: "App Dev II", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Video", topic: "Data Structures" },
+  { candidate: "Meera Joshi", rhid: "RH00081246", job: "Senior Java Developer", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Telephonic", topic: "Java Advanced" },
+  { candidate: "Karan Malhotra", rhid: "RH00081247", job: "QA Engineer", round: "Interview 1", interviewer: "Meera Nambiar", mode: "Video", topic: "Test Automation" },
+  { candidate: "Divya Rao", rhid: "RH00081248", job: "HR Business Partner", round: "HR Stage", interviewer: "Rajesh Kumar", mode: "In-person", topic: "HR Policies" },
+  { candidate: "Aditya Shah", rhid: "RH00081249", job: "App Dev II", round: "Interview 2", interviewer: "Priya Iyer", mode: "Telephonic", topic: "REST API Design" },
+];
+
+// Track which suggestions have been used
+let usedSuggestionIndices = new Set();
+
+function getNextSuggestion() {
+  if (usedSuggestionIndices.size >= SCHEDULE_SUGGESTIONS.length) {
+    usedSuggestionIndices = new Set(); // reset when all used
+  }
+  let idx;
+  do { idx = Math.floor(Math.random() * SCHEDULE_SUGGESTIONS.length); }
+  while (usedSuggestionIndices.has(idx));
+  usedSuggestionIndices.add(idx);
+  return SCHEDULE_SUGGESTIONS[idx];
+}
+
+function getExampleDate(offset = 3) {
   const date = new Date();
-  date.setDate(date.getDate() + 3);
+  date.setDate(date.getDate() + offset);
   const day = date.getDate();
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return `${day} ${months[date.getMonth()]}`;
 }
 
-const getHelloMsg = () => ({
-  id: 1,
-  role: "assistant",
-  kind: "text",
-  content: `Hi! I'm Recruiter Copilot.\n\nTell me what to schedule. Try:\n"Schedule Interview 1 for Manish Pandey, App Dev II, ${getExampleDate()} 2-3 PM, Telephonic, with Rajesh Kumar, topic Java Coding"`
-});
+const TIMES = ["9-10 AM", "10-11 AM", "11 AM-12 PM", "2-3 PM", "3-4 PM", "4-5 PM"];
+
+function getHelloMsg() {
+  const s = getNextSuggestion();
+  const dateOffset = 2 + Math.floor(Math.random() * 5);
+  const time = TIMES[Math.floor(Math.random() * TIMES.length)];
+  const exampleDate = getExampleDate(dateOffset);
+  return {
+    id: 1,
+    role: "assistant",
+    kind: "text",
+    content: `Hi! I'm Recruiter Copilot.\n\nTell me what to schedule. Try:\n"Schedule ${s.round} for ${s.candidate}, ${s.job}, ${exampleDate} ${time}, ${s.mode}, with ${s.interviewer}, topic ${s.topic}"`
+  };
+}
+
+// Track scheduled combinations to prevent duplicates
+const scheduledCombinations = new Set();
+
+function getCombinationKey(msg) {
+  return `${msg.candidate?.candidate?.rh_id}|${msg.interviewer?.employee_id}|${msg.slots?.round_name}|${msg.slots?.date}|${msg.slots?.time?.start}`;
+}
 
 export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast }) {
   const [messages, setMessages] = useState([getHelloMsg()]);
@@ -102,22 +143,27 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
   }, [addMessage]);
 
   const raiseSlotRequest = useCallback(async (emp, prevSlots) => {
-    await DB.add("time_slot_request", {
-      employee_id: emp.employee_id,
-      requested_by: currentUser.id,
-      slot_date: prevSlots.date,
-      start_time: prevSlots.time.start,
-      end_time: prevSlots.time.end,
-      repeat_pattern: "none",
-      status: "pending",
-      created_at: new Date().toISOString()
-    });
-    await refreshSnapshot();
-    addMessage({ role: "assistant", kind: "text", content: `Panel timeslot request raised for ${emp.name} (${emp.employee_id}) on ${prevSlots.date} ${prevSlots.time.start}–${prevSlots.time.end}. I'll schedule once they confirm.` });
-    toast?.success("Timeslot request sent");
+    try {
+      await DB.add("time_slot_request", {
+        employee_id: emp.employee_id,
+        requested_by: currentUser.id,
+        slot_date: prevSlots.date,
+        start_time: prevSlots.time.start,
+        end_time: prevSlots.time.end,
+        repeat_pattern: "none",
+        status: "pending",
+        created_at: new Date().toISOString()
+      });
+      await refreshSnapshot();
+      addMessage({ role: "assistant", kind: "text", content: `Panel timeslot request raised for ${emp.name} (${emp.employee_id}) on ${prevSlots.date} ${prevSlots.time.start}–${prevSlots.time.end}. I'll schedule once they confirm.` });
+      toast?.success("Timeslot request sent");
+    } catch (err) {
+      console.error("raiseSlotRequest error:", err);
+      toast?.error("Failed to raise slot request. Please try again.");
+      addMessage({ role: "assistant", kind: "text", content: "❌ Failed to raise the slot request. Please try again." });
+    }
   }, [currentUser, refreshSnapshot, addMessage, toast]);
 
-  // "Heads up — Sarah Johnson is in Shortlisted, not Interview 1." flow
   const acceptWrongRound = useCallback(async (app, slots) => {
     addMessage({ role: "user", kind: "text", content: "Yes, schedule it anyway" });
     setThinking(true);
@@ -136,32 +182,61 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
   }, [addMessage]);
 
   const confirmSchedule = useCallback(async (msg) => {
-    const round = snapshot.interview_round.find(r => r.job_id === msg.candidate.job.job_id && r.round_name === msg.slots.round_name);
-    const topic = msg.slots.topic || round?.default_topic || "Interview";
-    const mode = msg.slots.mode || "Video";
-    const interview = {
-      rh_id: msg.candidate.candidate.rh_id,
-      job_id: msg.candidate.job.job_id,
-      round_name: msg.slots.round_name,
-      interviewer_id: msg.interviewer.employee_id,
-      topic, mode,
-      slot_date: msg.slots.date,
-      start_time: msg.slots.time.start,
-      end_time: msg.slots.time.end,
-      status: "scheduled",
-      candidate_invited: true,
-      scheduled_by: currentUser.employee_id || currentUser.id,
-      created_at: new Date().toISOString()
-    };
-    const id = await DB.add("interviews", interview);
-    await DB.add("interview_history", { interview_id: id, action: "scheduled", at: new Date().toISOString(), by_user: currentUser.id });
-    await refreshSnapshot();
-    setPending(null);
-    addMessage({
-      role: "assistant", kind: "success", interview_id: id,
-      content: `Interview scheduled. ${msg.candidate.candidate.name} with ${msg.interviewer.name} on ${msg.slots.date}, ${msg.slots.time.start}–${msg.slots.time.end}.`
-    });
-    toast?.success("Interview scheduled");
+    // Check for duplicate combination
+    const key = getCombinationKey(msg);
+    if (scheduledCombinations.has(key)) {
+      toast?.error("This exact combination (candidate + interviewer + round + date + time) has already been scheduled!");
+      addMessage({ role: "assistant", kind: "text", content: "⚠️ This interview combination has already been scheduled. Please use a different date, time, or interviewer." });
+      return;
+    }
+
+    try {
+      const round = snapshot.interview_round.find(r => r.job_id === msg.candidate.job.job_id && r.round_name === msg.slots.round_name);
+      const topic = msg.slots.topic || round?.default_topic || "Interview";
+      const mode = msg.slots.mode || "Video";
+      const interview = {
+        rh_id: msg.candidate.candidate.rh_id,
+        job_id: msg.candidate.job.job_id,
+        round_name: msg.slots.round_name,
+        interviewer_id: msg.interviewer.employee_id,
+        topic, mode,
+        slot_date: msg.slots.date,
+        start_time: msg.slots.time.start,
+        end_time: msg.slots.time.end,
+        status: "scheduled",
+        candidate_invited: true,
+        scheduled_by: currentUser.id,
+        created_at: new Date().toISOString()
+      };
+      const id = await DB.add("interviews", interview);
+      if (!id && id !== 0) throw new Error("Insert returned no ID");
+
+      await DB.add("interview_history", {
+        interview_id: id,
+        action: "scheduled",
+        at: new Date().toISOString(),
+        by_user: currentUser.id
+      });
+
+      scheduledCombinations.add(key);
+      await refreshSnapshot();
+      setPending(null);
+
+      // Add a new rotating suggestion after successful schedule
+      const nextSuggestion = getNextSuggestion();
+      const nextTime = TIMES[Math.floor(Math.random() * TIMES.length)];
+      const nextDate = getExampleDate(3 + Math.floor(Math.random() * 4));
+
+      addMessage({
+        role: "assistant", kind: "success", interview_id: id,
+        content: `Interview scheduled! ✅\n${msg.candidate.candidate.name} with ${msg.interviewer.name} on ${msg.slots.date}, ${msg.slots.time.start}–${msg.slots.time.end}.\n\nNext to schedule? Try:\n"Schedule ${nextSuggestion.round} for ${nextSuggestion.candidate}, ${nextSuggestion.job}, ${nextDate} ${nextTime}, ${nextSuggestion.mode}, with ${nextSuggestion.interviewer}, topic ${nextSuggestion.topic}"`
+      });
+      toast?.success("Interview scheduled successfully!");
+    } catch (err) {
+      console.error("confirmSchedule error:", err);
+      toast?.error("Failed to schedule interview. Please try again.");
+      addMessage({ role: "assistant", kind: "text", content: `❌ Failed to save the interview: ${err?.message || "Unknown error"}. Please try again.` });
+    }
   }, [snapshot, currentUser, refreshSnapshot, addMessage, toast]);
 
   const cancelConfirm = useCallback(() => {

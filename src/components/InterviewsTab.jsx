@@ -4,7 +4,7 @@ import DataTable from "./DataTable.jsx";
 import InterviewDetailPopup from "./InterviewDetailPopup.jsx";
 import RescheduleForm from "./RescheduleForm.jsx";
 import CancelInterviewForm from "./CancelInterviewForm.jsx";
-import { ExternalLink, Calendar, Video, Phone, MapPin, X } from "lucide-react";
+import { Calendar, Video, Phone, MapPin, X } from "lucide-react";
 import * as DB from "../db.js";
 import { useToast } from "./Toast.jsx";
 import { formatDate, formatTime } from "../utils.js";
@@ -13,6 +13,7 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
   const [detailFor, setDetailFor] = useState(null);
   const [rescheduleFor, setRescheduleFor] = useState(null);
   const [cancelFor, setCancelFor] = useState(null);
+  const [saving, setSaving] = useState(false);
   const toast = useToast();
 
   const rows = snapshot.interviews.map(i => {
@@ -21,8 +22,7 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
     const interviewer = snapshot.employees.find(e => e.employee_id === i.interviewer_id);
     const histories = snapshot.interview_history.filter(h => h.interview_id === i.id);
     const wasRescheduled = histories.some(h => h.action === "rescheduled");
-    const wasCancelled = i.status === "cancelled" || histories.some(h => h.action === "cancelled");
-    return { ...i, candidate: cand, job, interviewer, wasRescheduled, wasCancelled };
+    return { ...i, candidate: cand, job, interviewer, wasRescheduled };
   }).filter(r => r.candidate && r.job && r.interviewer);
 
   const modeIcons = { Video, Telephonic: Phone, "In-person": MapPin };
@@ -54,7 +54,6 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
       key: "time",
       label: "Time",
       render: r => <span className="text-xs text-slate-800">{formatTime(r.start_time)}–{formatTime(r.end_time)}</span>,
-      sortValue: r => r.start_time,
       sortable: false
     },
     {
@@ -136,24 +135,77 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
         <div className="flex items-center gap-1">
           {r.status !== "cancelled" && r.status !== "completed" && (
             <>
-              <button 
-                onClick={() => setRescheduleFor(r)} 
-                className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded"
+              <button
+                onClick={() => setRescheduleFor(r)}
+                className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded transition"
               >
                 Reschedule
               </button>
-              <button 
-                onClick={() => setCancelFor(r)} 
-                className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded flex items-center gap-1"
+              <button
+                onClick={() => setCancelFor(r)}
+                className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded flex items-center gap-1 transition"
               >
                 <X size={10} /> Cancel
               </button>
             </>
           )}
+          {(r.status === "cancelled" || r.status === "completed") && (
+            <span className="text-xs text-slate-400 italic">No actions</span>
+          )}
         </div>
       )
     }
   ];
+
+  const handleReschedule = async (newDate, newStart, newEnd, reason) => {
+    setSaving(true);
+    try {
+      await DB.put("interviews", {
+        ...rescheduleFor,
+        slot_date: newDate,
+        start_time: newStart,
+        end_time: newEnd,
+        status: "rescheduled"
+      });
+      await DB.add("interview_history", {
+        interview_id: rescheduleFor.id,
+        action: "rescheduled",
+        at: new Date().toISOString(),
+        by_user: currentUser.id,
+        metadata: JSON.stringify({ reason, old_date: rescheduleFor.slot_date, old_start: rescheduleFor.start_time, old_end: rescheduleFor.end_time })
+      });
+      await refreshSnapshot();
+      toast.success(`✅ Interview rescheduled to ${formatDate(newDate)}. ${rescheduleFor.interviewer.name} has been notified.`);
+      setRescheduleFor(null);
+    } catch (err) {
+      console.error("Reschedule error:", err);
+      toast.error(`❌ Failed to reschedule: ${err?.message || "Unknown error"}. Please try again.`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = async (reason) => {
+    setSaving(true);
+    try {
+      await DB.put("interviews", { ...cancelFor, status: "cancelled" });
+      await DB.add("interview_history", {
+        interview_id: cancelFor.id,
+        action: "cancelled",
+        at: new Date().toISOString(),
+        by_user: currentUser.id,
+        metadata: JSON.stringify({ reason })
+      });
+      await refreshSnapshot();
+      toast.success(`✅ Interview cancelled. ${cancelFor.candidate.name} and ${cancelFor.interviewer.name} have been notified.`);
+      setCancelFor(null);
+    } catch (err) {
+      console.error("Cancel error:", err);
+      toast.error(`❌ Failed to cancel: ${err?.message || "Unknown error"}. Please try again.`);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div>
@@ -171,38 +223,16 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
         <RescheduleForm
           interview={rescheduleFor}
           onClose={() => setRescheduleFor(null)}
-          onSave={async (newDate, newStart, newEnd, reason) => {
-            await DB.put("interviews", { ...rescheduleFor, slot_date: newDate, start_time: newStart, end_time: newEnd, status: "rescheduled" });
-            await DB.add("interview_history", {
-              interview_id: rescheduleFor.id,
-              action: "rescheduled",
-              at: new Date().toISOString(),
-              by: currentUser.id,
-              metadata: { reason, old_date: rescheduleFor.slot_date, old_start: rescheduleFor.start_time, old_end: rescheduleFor.end_time }
-            });
-            await refreshSnapshot();
-            toast.success(`✅ Interview rescheduled to ${formatDate(newDate)}. ${rescheduleFor.interviewer.name} has been notified.`);
-            setRescheduleFor(null);
-          }}
+          saving={saving}
+          onSave={handleReschedule}
         />
       )}
       {cancelFor && (
         <CancelInterviewForm
           interview={cancelFor}
           onClose={() => setCancelFor(null)}
-          onSave={async (reason) => {
-            await DB.put("interviews", { ...cancelFor, status: "cancelled" });
-            await DB.add("interview_history", {
-              interview_id: cancelFor.id,
-              action: "cancelled",
-              at: new Date().toISOString(),
-              by: currentUser.id,
-              metadata: { reason }
-            });
-            await refreshSnapshot();
-            toast.success(`✅ Interview cancelled. ${cancelFor.candidate.name} and ${cancelFor.interviewer.name} have been notified.`);
-            setCancelFor(null);
-          }}
+          saving={saving}
+          onSave={handleCancel}
         />
       )}
     </div>

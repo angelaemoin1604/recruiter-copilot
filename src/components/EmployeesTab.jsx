@@ -7,7 +7,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 export default function EmployeesTab({ snapshot, refreshSnapshot, currentUser }) {
   const [drawerEmp, setDrawerEmp] = useState(null);
 
-  const rows = snapshot.employees.filter(e => e.employee_id !== currentUser.id); // hide logged-in user from list
+  const rows = snapshot.employees.filter(e => e.employee_id !== currentUser.id);
 
   const columns = [
     {
@@ -58,13 +58,13 @@ export default function EmployeesTab({ snapshot, refreshSnapshot, currentUser })
     },
     {
       key: "actions",
-      label: "",
+      label: "Employee & timeslot details",
       sortable: false,
       filterable: false,
       render: r => (
         <button
           onClick={() => setDrawerEmp(r)}
-          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded"
+          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded transition"
         >
           View
         </button>
