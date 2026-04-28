@@ -10,13 +10,15 @@ import { formatDate, formatTime } from "../utils.js";
 
 export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, currentUser, onClose }) {
   const [tab, setTab] = useState("profile");
-  const [editMode, setEditMode] = useState(false);
   const [addingSkill, setAddingSkill] = useState(false);
   const [addingRound, setAddingRound] = useState(false);
   const [addingGrade, setAddingGrade] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
   const [showAddSlot, setShowAddSlot] = useState(false);
   const toast = useToast();
+
+  // Always read the LIVE employee from the current snapshot — not the stale prop
+  const liveEmployee = snapshot.employees.find(e => e.employee_id === employee.employee_id) || employee;
 
   const empRounds = getEmployeeRounds(employee.employee_id, snapshot);
   const empSkills = getEmployeeSkills(employee.employee_id, snapshot);
@@ -30,9 +32,31 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
   );
 
   const toggleCertified = async () => {
-    await DB.put("employees", { ...employee, is_certified_panelist: !employee.is_certified_panelist });
-    await refreshSnapshot();
-    toast.success(employee.is_certified_panelist ? "Panelist certification removed" : "Panelist certified");
+    try {
+      // Only send the exact columns that exist in the employees table
+      await DB.put("employees", {
+        employee_id: liveEmployee.employee_id,
+        name: liveEmployee.name,
+        email: liveEmployee.email,
+        phone: liveEmployee.phone,
+        department: liveEmployee.department,
+        location: liveEmployee.location,
+        grade: liveEmployee.grade,
+        level: liveEmployee.level,
+        hired_job_title: liveEmployee.hired_job_title,
+        is_certified_panelist: !liveEmployee.is_certified_panelist,
+        is_active: liveEmployee.is_active
+      });
+      await refreshSnapshot();
+      toast.success(
+        liveEmployee.is_certified_panelist
+          ? "✅ Panelist certification removed. Skills, Rounds and Grades hidden."
+          : "✅ Employee is now a Certified Panelist!"
+      );
+    } catch (err) {
+      console.error("toggleCertified error:", err);
+      toast.error(`❌ Failed to update: ${err?.message || "Unknown error"}`);
+    }
   };
 
   const removeSkill = async (skill) => {
@@ -102,31 +126,98 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
   const confirmRequest = async (reqId) => {
     const req = snapshot.time_slot_request.find(r => r.id === reqId);
     if (!req) return;
-    await DB.add("interviewer_availability", {
-      employee_id: req.employee_id,
-      slot_date: req.slot_date,
-      start_time: req.start_time,
-      end_time: req.end_time,
-      status: "confirmed",
-      added_by: currentUser.id,
-      added_by_self: false
-    });
-    await DB.put("time_slot_request", { ...req, status: "confirmed" });
-    await refreshSnapshot();
-    toast.success("Request confirmed");
+    try {
+      await DB.add("interviewer_availability", {
+        employee_id: req.employee_id,
+        slot_date: req.slot_date,
+        start_time: req.start_time,
+        end_time: req.end_time,
+        status: "confirmed",
+        added_by: currentUser.id,
+        added_by_self: false
+      });
+      // Only send exact time_slot_request columns — no extra fields
+      await DB.put("time_slot_request", {
+        id: req.id,
+        employee_id: req.employee_id,
+        requested_by: req.requested_by,
+        slot_date: req.slot_date,
+        start_time: req.start_time,
+        end_time: req.end_time,
+        repeat_pattern: req.repeat_pattern || "none",
+        status: "confirmed",
+        created_at: req.created_at
+      });
+      await refreshSnapshot();
+      toast.success("✅ Timeslot request confirmed!");
+    } catch (err) {
+      console.error("confirmRequest error:", err);
+      toast.error(`❌ Failed to confirm: ${err?.message || "Unknown error"}`);
+    }
   };
 
   const rejectRequest = async (reqId) => {
     const req = snapshot.time_slot_request.find(r => r.id === reqId);
     if (!req) return;
-    await DB.put("time_slot_request", { ...req, status: "rejected" });
-    await refreshSnapshot();
-    toast.success("Request rejected");
-    setConfirmDel(null);
+    try {
+      // Only send exact time_slot_request columns
+      await DB.put("time_slot_request", {
+        id: req.id,
+        employee_id: req.employee_id,
+        requested_by: req.requested_by,
+        slot_date: req.slot_date,
+        start_time: req.start_time,
+        end_time: req.end_time,
+        repeat_pattern: req.repeat_pattern || "none",
+        status: "rejected",
+        created_at: req.created_at
+      });
+      await refreshSnapshot();
+      toast.success("Request rejected");
+      setConfirmDel(null);
+    } catch (err) {
+      console.error("rejectRequest error:", err);
+      toast.error(`❌ Failed to reject: ${err?.message || "Unknown error"}`);
+    }
+  };
+
+  const handleAddSlot = async (data) => {
+    try {
+      if (data.mode === "confirmed") {
+        await DB.add("interviewer_availability", {
+          employee_id: employee.employee_id,
+          slot_date: data.date,
+          start_time: data.start,
+          end_time: data.end,
+          status: "confirmed",
+          added_by: currentUser.id,
+          added_by_self: currentUser.id === employee.employee_id
+        });
+        await refreshSnapshot();
+        toast.success(`✅ Confirmed timeslot added for ${employee.name}!`);
+      } else {
+        await DB.add("time_slot_request", {
+          employee_id: employee.employee_id,
+          requested_by: currentUser.id,
+          slot_date: data.date,
+          start_time: data.start,
+          end_time: data.end,
+          repeat_pattern: data.repeat || "none",
+          status: "pending",
+          created_at: new Date().toISOString()
+        });
+        await refreshSnapshot();
+        toast.success(`⏳ Pending timeslot request sent to ${employee.name}!`);
+      }
+      setShowAddSlot(false);
+    } catch (err) {
+      console.error("handleAddSlot error:", err);
+      toast.error(`❌ Failed to add timeslot: ${err?.message || "Unknown error"}. Please try again.`);
+    }
   };
 
   const getAdderName = (addedBy) => {
-    if (addedBy === employee.employee_id) return `${employee.name} (me)`;
+    if (addedBy === employee.employee_id) return `${employee.name} (self)`;
     const emp = snapshot.employees.find(e => e.employee_id === addedBy);
     return emp ? (emp.employee_id === currentUser.id ? `${emp.name} (me)` : emp.name) : "Unknown";
   };
@@ -178,7 +269,6 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
         <div className="p-6 space-y-6">
           {tab === "profile" && (
             <>
-              {/* Profile (read-only) */}
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                 <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
                   <User size={14} /> Profile Information
@@ -191,7 +281,7 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
                 </div>
               </div>
 
-              {/* Certified panelist toggle */}
+              {/* Toggle reads from liveEmployee so it always shows the current saved state */}
               <div className="flex items-center justify-between p-4 bg-white border-2 border-slate-300 rounded-lg">
                 <div>
                   <div className="font-bold text-slate-900 text-sm">Certified Panelist</div>
@@ -200,17 +290,17 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
                 <button
                   onClick={toggleCertified}
                   className={`relative w-12 h-6 rounded-full transition ${
-                    employee.is_certified_panelist ? "bg-emerald-600" : "bg-slate-300"
+                    liveEmployee.is_certified_panelist ? "bg-emerald-600" : "bg-slate-300"
                   }`}
                 >
                   <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                    employee.is_certified_panelist ? "translate-x-6" : "translate-x-0"
+                    liveEmployee.is_certified_panelist ? "translate-x-6" : "translate-x-0"
                   }`} />
                 </button>
               </div>
 
-              {/* Assessment Ability (only shown if certified) */}
-              {employee.is_certified_panelist && (
+              {/* Skills/Rounds/Grades — only shown when certified (reads liveEmployee) */}
+              {liveEmployee.is_certified_panelist && (
                 <div className="space-y-4">
                   {/* Skills */}
                   <div className="bg-white border-2 border-slate-300 rounded-lg p-4">
@@ -231,12 +321,7 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
                         </span>
                       ))}
                       {addingSkill && (
-                        <select
-                          autoFocus
-                          onChange={(e) => { if (e.target.value) addSkill(e.target.value); }}
-                          onBlur={() => setAddingSkill(false)}
-                          className="px-2 py-0.5 text-xs border-2 border-blue-500 rounded"
-                        >
+                        <select autoFocus onChange={(e) => { if (e.target.value) addSkill(e.target.value); }} onBlur={() => setAddingSkill(false)} className="px-2 py-0.5 text-xs border-2 border-blue-500 rounded">
                           <option value="">Select skill...</option>
                           {["Java", "Python", "JavaScript", "React", "Spring Boot", "Microservices", "System Design", "Architecture", "Node.js", "MongoDB", "MySQL", "PHP", "Selenium", "Test Automation", "CSS", "HTML", "Behavioral", "Culture Fit", "Leadership", "Java J2EE"].filter(s => !empSkills.includes(s)).map(s => (
                             <option key={s} value={s}>{s}</option>
@@ -265,12 +350,7 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
                         </span>
                       ))}
                       {addingRound && (
-                        <select
-                          autoFocus
-                          onChange={(e) => { if (e.target.value) addRound(e.target.value); }}
-                          onBlur={() => setAddingRound(false)}
-                          className="px-2 py-0.5 text-xs border-2 border-indigo-500 rounded"
-                        >
+                        <select autoFocus onChange={(e) => { if (e.target.value) addRound(e.target.value); }} onBlur={() => setAddingRound(false)} className="px-2 py-0.5 text-xs border-2 border-indigo-500 rounded">
                           <option value="">Select round...</option>
                           {["Interview 1", "Interview 2", "Client", "HR Stage"].filter(r => !empRounds.includes(r)).map(r => (
                             <option key={r} value={r}>{r}</option>
@@ -299,12 +379,7 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
                         </span>
                       ))}
                       {addingGrade && (
-                        <select
-                          autoFocus
-                          onChange={(e) => { if (e.target.value) addGrade(e.target.value); }}
-                          onBlur={() => setAddingGrade(false)}
-                          className="px-2 py-0.5 text-xs border-2 border-purple-500 rounded"
-                        >
+                        <select autoFocus onChange={(e) => { if (e.target.value) addGrade(e.target.value); }} onBlur={() => setAddingGrade(false)} className="px-2 py-0.5 text-xs border-2 border-purple-500 rounded">
                           <option value="">Select grade...</option>
                           {["Grade 3", "Grade 4", "Grade 5", "Grade 6"].filter(g => !empGrades.includes(g)).map(g => (
                             <option key={g} value={g}>{g}</option>
@@ -320,7 +395,6 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
 
           {tab === "availability" && (
             <>
-              {/* Confirmed slots */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
@@ -331,9 +405,7 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
                   </button>
                 </div>
                 {confirmedSlots.length === 0 ? (
-                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg text-center text-xs text-slate-700">
-                    No confirmed slots
-                  </div>
+                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg text-center text-xs text-slate-700">No confirmed slots</div>
                 ) : (
                   <div className="space-y-1.5">
                     {confirmedSlots.map(s => (
@@ -354,15 +426,12 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
                 )}
               </div>
 
-              {/* Pending requests */}
               <div>
                 <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
                   <Clock size={14} className="text-amber-600" /> Pending Requests
                 </h3>
                 {pendingRequests.length === 0 ? (
-                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg text-center text-xs text-slate-700">
-                    No pending requests
-                  </div>
+                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg text-center text-xs text-slate-700">No pending requests</div>
                 ) : (
                   <div className="space-y-1.5">
                     {pendingRequests.map(r => (
@@ -397,33 +466,7 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
           employee={employee}
           currentUser={currentUser}
           onClose={() => setShowAddSlot(false)}
-          onSave={async (data) => {
-            if (data.mode === "confirmed") {
-              await DB.add("interviewer_availability", {
-                employee_id: employee.employee_id,
-                slot_date: data.date,
-                start_time: data.start,
-                end_time: data.end,
-                status: "confirmed",
-                added_by: currentUser.id,
-                added_by_self: currentUser.id === employee.employee_id
-              });
-            } else {
-              await DB.add("time_slot_request", {
-                employee_id: employee.employee_id,
-                requested_by: currentUser.id,
-                slot_date: data.date,
-                start_time: data.start,
-                end_time: data.end,
-                repeat_pattern: data.repeat,
-                status: "pending",
-                created_at: new Date().toISOString()
-              });
-            }
-            await refreshSnapshot();
-            toast.success(data.mode === "confirmed" ? "Timeslot added" : "Request sent");
-            setShowAddSlot(false);
-          }}
+          onSave={handleAddSlot}
         />
       )}
 

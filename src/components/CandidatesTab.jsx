@@ -91,7 +91,7 @@ export default function CandidatesTab({ snapshot }) {
       key: "applied_at",
       label: "Applied",
       render: r => <span className="text-xs text-slate-800">{formatDate(r.applied_at)}</span>,
-      filterValue: r => r.applied_at
+      filterValue: r => { const d = new Date(r.applied_at + "T00:00:00"); const day = d.getDate(); const months = ["January","February","March","April","May","June","July","August","September","October","November","December"]; return `${day} ${months[d.getMonth()]} ${d.getFullYear()}`; }
     },
     {
       key: "resume",

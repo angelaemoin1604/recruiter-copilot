@@ -1,30 +1,28 @@
-// ============================================================
 // useChatEngine.js - Shared chat state + scheduling logic
-// ============================================================
 import { useState, useCallback } from "react";
 import { processMessage, resolveInterviewer, checkChosenInterviewer } from "../resolution.js";
 import * as DB from "../db.js";
 
-// All real candidate/interviewer/job/topic combinations for rotating suggestions
+// REAL candidates from the database with their actual job applications
+// These are verified to exist in the system
 const SCHEDULE_SUGGESTIONS = [
-  { candidate: "Anjali Sharma", rhid: "RH00081234", job: "App Dev II", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Telephonic", topic: "Java Coding" },
-  { candidate: "Vikram Nair", rhid: "RH00081235", job: "App Dev II", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Video", topic: "System Design" },
-  { candidate: "Priya Menon", rhid: "RH00081236", job: "Senior Java Developer", round: "Interview 2", interviewer: "Priya Iyer", mode: "In-person", topic: "Spring Boot" },
-  { candidate: "Rohan Das", rhid: "RH00081240", job: "App Dev II", round: "Interview 2", interviewer: "Rahul Verma", mode: "Video", topic: "Microservices" },
-  { candidate: "Sneha Pillai", rhid: "RH00081241", job: "Frontend Engineer", round: "Interview 1", interviewer: "Vikram Singh", mode: "Telephonic", topic: "React & TypeScript" },
-  { candidate: "Arjun Kapoor", rhid: "RH00081245", job: "App Dev II", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Video", topic: "Data Structures" },
-  { candidate: "Meera Joshi", rhid: "RH00081246", job: "Senior Java Developer", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Telephonic", topic: "Java Advanced" },
-  { candidate: "Karan Malhotra", rhid: "RH00081247", job: "QA Engineer", round: "Interview 1", interviewer: "Meera Nambiar", mode: "Video", topic: "Test Automation" },
-  { candidate: "Divya Rao", rhid: "RH00081248", job: "HR Business Partner", round: "HR Stage", interviewer: "Rajesh Kumar", mode: "In-person", topic: "HR Policies" },
-  { candidate: "Aditya Shah", rhid: "RH00081249", job: "App Dev II", round: "Interview 2", interviewer: "Priya Iyer", mode: "Telephonic", topic: "REST API Design" },
+  { candidate: "Anjali Sharma", job: "Application Developer II", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Telephonic", topic: "Java Coding" },
+  { candidate: "Anjali Sharma", job: "Application Developer II", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Video", topic: "System Design" },
+  { candidate: "Anjali Sharma", job: "Frontend Engineer", round: "Interview 1", interviewer: "Vikram Singh", mode: "Video", topic: "React & TypeScript" },
+  { candidate: "Rohan Gupta", job: "Application Developer II", round: "Interview 2", interviewer: "Rahul Verma", mode: "Video", topic: "Microservices" },
+  { candidate: "Rohan Gupta", job: "Senior Java Developer", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Telephonic", topic: "Java Advanced" },
+  { candidate: "Manish Pandey", job: "Application Developer II", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Video", topic: "Data Structures" },
+  { candidate: "Aditi Desai", job: "Frontend Engineer", round: "Interview 1", interviewer: "Vikram Singh", mode: "Telephonic", topic: "CSS & HTML" },
+  { candidate: "Karan Mehta", job: "QA Engineer", round: "Interview 1", interviewer: "Meera Nambiar", mode: "Video", topic: "Test Automation" },
+  { candidate: "Priya Singh", job: "HR Business Partner", round: "HR Stage", interviewer: "Rajesh Kumar", mode: "In-person", topic: "HR Policies" },
+  { candidate: "Rahul Joshi", job: "Application Developer II", round: "Interview 2", interviewer: "Priya Iyer", mode: "Telephonic", topic: "REST API Design" },
 ];
 
-// Track which suggestions have been used
 let usedSuggestionIndices = new Set();
 
 function getNextSuggestion() {
   if (usedSuggestionIndices.size >= SCHEDULE_SUGGESTIONS.length) {
-    usedSuggestionIndices = new Set(); // reset when all used
+    usedSuggestionIndices = new Set();
   }
   let idx;
   do { idx = Math.floor(Math.random() * SCHEDULE_SUGGESTIONS.length); }
@@ -56,7 +54,6 @@ function getHelloMsg() {
   };
 }
 
-// Track scheduled combinations to prevent duplicates
 const scheduledCombinations = new Set();
 
 function getCombinationKey(msg) {
@@ -109,7 +106,7 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
     if (iRes.status === "interviewer_multiple") { addMessage({ role: "assistant", kind: "interviewer_disambig", slots, candidate: cRes, options: iRes.options }); return; }
     if (iRes.status === "not_qualified") { addMessage({ role: "assistant", kind: "not_qualified", slots, candidate: cRes, named: iRes.named, alternatives: iRes.alternatives, round: iRes.round }); return; }
     if (iRes.status === "no_qualified") { addMessage({ role: "assistant", kind: "text", content: "No qualified interviewer found for that round." }); return; }
-    if (iRes.status === "no_slot") { addMessage({ role: "assistant", kind: "no_slot", slots, candidate: cRes, interviewer: iRes.interviewer, nearby: iRes.nearby, alternatives: iRes.alternatives }); return; }
+    if (iRes.status === "no_slot") { addMessage({ role: "assistant", kind: "no_slot", slots, candidate: cRes, interviewer: iRes.interviewer, nearby: iRes.nearby || [], alternatives: iRes.alternatives || [] }); return; }
     if (iRes.status === "no_availability") { addMessage({ role: "assistant", kind: "no_availability", slots, candidate: cRes, top3: iRes.top3 }); return; }
     const confirmMsg = { role: "assistant", kind: "confirm", slots, candidate: cRes, interviewer: iRes.interviewer, slot: iRes.slot, auto_picked: iRes.status === "auto_picked", score: iRes.score };
     addMessage(confirmMsg);
@@ -129,7 +126,7 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
       addMessage(confirmMsg);
       setPending(confirmMsg);
     } else if (checked.status === "no_slot") {
-      addMessage({ role: "assistant", kind: "no_slot", slots: prevSlots, candidate, interviewer: checked.interviewer, nearby: checked.nearby, alternatives: checked.alternatives });
+      addMessage({ role: "assistant", kind: "no_slot", slots: prevSlots, candidate, interviewer: checked.interviewer, nearby: checked.nearby || [], alternatives: checked.alternatives || [] });
     }
   }, [snapshot, addMessage]);
 
@@ -142,6 +139,29 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
     setPending(confirmMsg);
   }, [addMessage]);
 
+  // A) Add confirmed timeslot directly
+  const addConfirmedSlot = useCallback(async (emp, prevSlots) => {
+    try {
+      await DB.add("interviewer_availability", {
+        employee_id: emp.employee_id,
+        slot_date: prevSlots.date,
+        start_time: prevSlots.time.start,
+        end_time: prevSlots.time.end,
+        status: "confirmed",
+        added_by: currentUser.id,
+        added_by_self: false
+      });
+      await refreshSnapshot();
+      addMessage({ role: "assistant", kind: "text", content: `✅ Confirmed timeslot added for ${emp.name} on ${prevSlots.date} ${prevSlots.time.start}–${prevSlots.time.end}. You can now schedule the interview!` });
+      toast?.success(`Confirmed timeslot added for ${emp.name}`);
+    } catch (err) {
+      console.error("addConfirmedSlot error:", err);
+      toast?.error("Failed to add confirmed timeslot. Please try again.");
+      addMessage({ role: "assistant", kind: "text", content: `❌ Failed to add confirmed timeslot: ${err?.message || "Unknown error"}` });
+    }
+  }, [currentUser, refreshSnapshot, addMessage, toast]);
+
+  // B) Add pending timeslot request
   const raiseSlotRequest = useCallback(async (emp, prevSlots) => {
     try {
       await DB.add("time_slot_request", {
@@ -155,12 +175,12 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
         created_at: new Date().toISOString()
       });
       await refreshSnapshot();
-      addMessage({ role: "assistant", kind: "text", content: `Panel timeslot request raised for ${emp.name} (${emp.employee_id}) on ${prevSlots.date} ${prevSlots.time.start}–${prevSlots.time.end}. I'll schedule once they confirm.` });
-      toast?.success("Timeslot request sent");
+      addMessage({ role: "assistant", kind: "text", content: `⏳ Pending timeslot request sent to ${emp.name} for ${prevSlots.date} ${prevSlots.time.start}–${prevSlots.time.end}. Once they confirm, come back to schedule.` });
+      toast?.success(`Pending timeslot request sent to ${emp.name}`);
     } catch (err) {
       console.error("raiseSlotRequest error:", err);
       toast?.error("Failed to raise slot request. Please try again.");
-      addMessage({ role: "assistant", kind: "text", content: "❌ Failed to raise the slot request. Please try again." });
+      addMessage({ role: "assistant", kind: "text", content: `❌ Failed to raise slot request: ${err?.message || "Unknown error"}` });
     }
   }, [currentUser, refreshSnapshot, addMessage, toast]);
 
@@ -182,11 +202,10 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
   }, [addMessage]);
 
   const confirmSchedule = useCallback(async (msg) => {
-    // Check for duplicate combination
     const key = getCombinationKey(msg);
     if (scheduledCombinations.has(key)) {
-      toast?.error("This exact combination (candidate + interviewer + round + date + time) has already been scheduled!");
-      addMessage({ role: "assistant", kind: "text", content: "⚠️ This interview combination has already been scheduled. Please use a different date, time, or interviewer." });
+      toast?.error("This combination has already been scheduled! Use a different date, time, or interviewer.");
+      addMessage({ role: "assistant", kind: "text", content: "⚠️ This exact interview is already scheduled. Please change the date, time, or interviewer." });
       return;
     }
 
@@ -209,7 +228,7 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
         created_at: new Date().toISOString()
       };
       const id = await DB.add("interviews", interview);
-      if (!id && id !== 0) throw new Error("Insert returned no ID");
+      if (!id && id !== 0) throw new Error("Insert returned no ID — check Supabase RLS policies");
 
       await DB.add("interview_history", {
         interview_id: id,
@@ -222,20 +241,19 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
       await refreshSnapshot();
       setPending(null);
 
-      // Add a new rotating suggestion after successful schedule
-      const nextSuggestion = getNextSuggestion();
+      const next = getNextSuggestion();
       const nextTime = TIMES[Math.floor(Math.random() * TIMES.length)];
       const nextDate = getExampleDate(3 + Math.floor(Math.random() * 4));
 
       addMessage({
         role: "assistant", kind: "success", interview_id: id,
-        content: `Interview scheduled! ✅\n${msg.candidate.candidate.name} with ${msg.interviewer.name} on ${msg.slots.date}, ${msg.slots.time.start}–${msg.slots.time.end}.\n\nNext to schedule? Try:\n"Schedule ${nextSuggestion.round} for ${nextSuggestion.candidate}, ${nextSuggestion.job}, ${nextDate} ${nextTime}, ${nextSuggestion.mode}, with ${nextSuggestion.interviewer}, topic ${nextSuggestion.topic}"`
+        content: `${msg.candidate.candidate.name} with ${msg.interviewer.name} on ${msg.slots.date}, ${msg.slots.time.start}–${msg.slots.time.end}.\n\nNext to schedule? Try:\n"Schedule ${next.round} for ${next.candidate}, ${next.job}, ${nextDate} ${nextTime}, ${next.mode}, with ${next.interviewer}, topic ${next.topic}"`
       });
-      toast?.success("Interview scheduled successfully!");
+      toast?.success("Interview scheduled successfully! ✅");
     } catch (err) {
       console.error("confirmSchedule error:", err);
-      toast?.error("Failed to schedule interview. Please try again.");
-      addMessage({ role: "assistant", kind: "text", content: `❌ Failed to save the interview: ${err?.message || "Unknown error"}. Please try again.` });
+      toast?.error(`Failed to schedule: ${err?.message || "Unknown error"}`);
+      addMessage({ role: "assistant", kind: "text", content: `❌ Failed to save: ${err?.message || "Unknown error"}. Please try again.` });
     }
   }, [snapshot, currentUser, refreshSnapshot, addMessage, toast]);
 
@@ -248,7 +266,7 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
     messages, input, setInput, thinking, pending,
     send, reset,
     selectCandidate, selectInterviewer, selectAlternative,
-    chooseNearbySlot, raiseSlotRequest,
+    chooseNearbySlot, raiseSlotRequest, addConfirmedSlot,
     acceptWrongRound, declineWrongRound,
     confirmSchedule, cancelConfirm
   };

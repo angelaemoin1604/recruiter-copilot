@@ -9,6 +9,12 @@ import * as DB from "../db.js";
 import { useToast } from "./Toast.jsx";
 import { formatDate, formatTime } from "../utils.js";
 
+// Strip enriched fields before sending to DB — only keep real DB columns
+function toDbRow(row) {
+  const { candidate, job, interviewer, wasRescheduled, ...dbRow } = row;
+  return dbRow;
+}
+
 export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }) {
   const [detailFor, setDetailFor] = useState(null);
   const [rescheduleFor, setRescheduleFor] = useState(null);
@@ -160,8 +166,10 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
   const handleReschedule = async (newDate, newStart, newEnd, reason) => {
     setSaving(true);
     try {
+      // Strip enriched fields — only send real DB columns
+      const dbRow = toDbRow(rescheduleFor);
       await DB.put("interviews", {
-        ...rescheduleFor,
+        ...dbRow,
         slot_date: newDate,
         start_time: newStart,
         end_time: newEnd,
@@ -188,7 +196,9 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
   const handleCancel = async (reason) => {
     setSaving(true);
     try {
-      await DB.put("interviews", { ...cancelFor, status: "cancelled" });
+      // Strip enriched fields — only send real DB columns
+      const dbRow = toDbRow(cancelFor);
+      await DB.put("interviews", { ...dbRow, status: "cancelled" });
       await DB.add("interview_history", {
         interview_id: cancelFor.id,
         action: "cancelled",
