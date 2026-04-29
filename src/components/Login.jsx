@@ -32,7 +32,7 @@ export default function Login({ onLogin }) {
     setLoading(false);
 
     if (email.trim().toLowerCase() === VALID_EMAIL && password === VALID_PASSWORD) {
-      onLogin({ email: email.trim().toLowerCase(), name: "Sanjay Krishnan", id: "REC0001" });
+      onLogin({ email: email.trim().toLowerCase(), name: "Angela Michael Emoin", id: "REC0001" });
     } else {
       setError("Invalid email or password. Use recruiter@sandbox.com / Ripplehire123");
       setShake(true);
