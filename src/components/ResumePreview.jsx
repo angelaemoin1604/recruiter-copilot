@@ -11,14 +11,21 @@ export default function ResumePreview({ candidate, application, job, jobSkills, 
   const toast = useToast();
 
   useEffect(() => {
+    // FIX #6: Improved error handling - wrap in try-catch
     setLoading(true);
     setError(null);
+    
     try {
+      // Validate inputs before generating
+      if (!candidate || !application || !job || !jobSkills) {
+        throw new Error("Missing required data for PDF generation");
+      }
+      
       const data = previewResumePDF(candidate, application, job, jobSkills);
       setPdfData(data);
     } catch (err) {
       console.error("PDF generation error:", err);
-      setError(err?.message || "Failed to generate PDF");
+      setError(err?.message || "Failed to generate PDF preview");
     } finally {
       setLoading(false);
     }
@@ -27,11 +34,18 @@ export default function ResumePreview({ candidate, application, job, jobSkills, 
   const handleDownload = () => {
     try {
       downloadResumePDF(candidate, application, job, jobSkills);
-      if (typeof toast?.success === "function") toast.success(`✅ Resume downloaded for ${candidate.name}`);
-      else if (typeof toast === "function") toast(`✅ Resume downloaded for ${candidate.name}`);
+      if (typeof toast?.success === "function") {
+        toast.success(`✅ Resume downloaded for ${candidate.name}`);
+      } else if (typeof toast === "function") {
+        toast(`✅ Resume downloaded for ${candidate.name}`);
+      }
     } catch (err) {
       console.error("Download error:", err);
-      if (typeof toast?.error === "function") toast.error(`❌ Download failed: ${err?.message}`);
+      if (typeof toast?.error === "function") {
+        toast.error(`❌ Download failed: ${err?.message || "Unknown error"}`);
+      } else if (typeof toast === "function") {
+        toast(`❌ Download failed: ${err?.message || "Unknown error"}`);
+      }
     }
   };
 

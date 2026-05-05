@@ -4,8 +4,8 @@ import DataTable from "./DataTable.jsx";
 import InterviewDetailPopup from "./InterviewDetailPopup.jsx";
 import RescheduleForm from "./RescheduleForm.jsx";
 import CancelInterviewForm from "./CancelInterviewForm.jsx";
-import { Video, Phone, MapPin, X } from "lucide-react";
-import * as DB from "../db.js";
+import { Video, Phone, MapPin, X, Edit2, Trash2 } from "lucide-react";
+import * as DB from "../supabase.js";
 import { useToast } from "./Toast.jsx";
 import { formatDate, formatTime } from "../utils.js";
 
@@ -22,7 +22,9 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
     const interviewer = snapshot.employees.find(e => e.employee_id === i.interviewer_id);
     const histories = snapshot.interview_history.filter(h => h.interview_id === i.id);
     const wasRescheduled = histories.some(h => h.action === "rescheduled");
-    return { ...i, candidate: cand, job, interviewer, wasRescheduled };
+    // FIX #8 & #9: Add mode_filter and status_filter for DataTable filtering, capitalize first letter
+    const status_filter = i.status.charAt(0).toUpperCase() + i.status.slice(1);
+    return { ...i, candidate: cand, job, interviewer, wasRescheduled, mode_filter: i.mode, status_filter };
   }).filter(r => r.candidate && r.job && r.interviewer);
 
   const modeIcons = { Video, Telephonic: Phone, "In-person": MapPin };
@@ -45,23 +47,7 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
     },
     { key: "slot_date", label: "Date", render: r => <span className="text-xs font-semibold text-slate-900">{formatDate(r.slot_date)}</span>, filterValue: r => r.slot_date },
     { key: "time", label: "Time", render: r => <span className="text-xs text-slate-800">{formatTime(r.start_time)}–{formatTime(r.end_time)}</span>, sortable: false },
-    {
-      key: "mode", label: "Mode",
-      render: r => {
-        const Icon = modeIcons[r.mode] || Video;
-        const colors = { Video: "bg-blue-50 text-blue-800 border-blue-300", Telephonic: "bg-green-50 text-green-800 border-green-300", "In-person": "bg-purple-50 text-purple-800 border-purple-300" };
-        return <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded border ${colors[r.mode] || colors.Video}`}><Icon size={10} /> {r.mode}</span>;
-      },
-      filterValue: r => r.mode
-    },
-    {
-      key: "status", label: "Status",
-      render: r => {
-        const colors = { scheduled: "bg-emerald-50 text-emerald-800 border-emerald-300", rescheduled: "bg-amber-50 text-amber-800 border-amber-300", completed: "bg-slate-100 text-slate-800 border-slate-300", cancelled: "bg-red-50 text-red-800 border-red-300" };
-        return <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded border capitalize ${colors[r.status] || colors.scheduled}`}>{r.status}</span>;
-      },
-      filterValue: r => r.status
-    },
+    // FIX #8: Removed Mode and Status columns from table display, but kept in filters via mode_filter and status_filter
     { key: "interviewer_name", label: "Interviewer", accessor: r => r.interviewer.name, render: r => <span className="text-xs font-medium text-slate-900">{r.interviewer.name}</span>, filterValue: r => r.interviewer.name },
     { key: "round_name", label: "Round", render: r => <span className="inline-block px-2 py-0.5 bg-indigo-50 text-indigo-800 border border-indigo-300 text-xs font-semibold rounded">{r.round_name}</span>, filterValue: r => r.round_name },
     {
@@ -74,18 +60,44 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
     {
       key: "actions", label: "Actions", sortable: false, filterable: false,
       render: r => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           {r.status !== "cancelled" && r.status !== "completed" ? (
             <>
-              <button onClick={() => setRescheduleFor(r)} className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded transition">Reschedule</button>
-              <button onClick={() => setCancelFor(r)} className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded flex items-center gap-1 transition"><X size={10} /> Cancel</button>
+              {/* FIX #7: Replace colored buttons with Edit2 and Trash2 icons with tooltips */}
+              <div className="relative group">
+                <button 
+                  onClick={() => setRescheduleFor(r)} 
+                  className="p-1.5 hover:bg-slate-100 rounded transition"
+                  aria-label="Edit Interview"
+                >
+                  <Edit2 size={16} className="text-slate-700" />
+                </button>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                  Edit Interview
+                </div>
+              </div>
+              <div className="relative group">
+                <button 
+                  onClick={() => setCancelFor(r)} 
+                  className="p-1.5 hover:bg-red-50 rounded transition"
+                  aria-label="Cancel interview"
+                >
+                  <Trash2 size={16} className="text-red-600" />
+                </button>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                  Cancel interview
+                </div>
+              </div>
             </>
           ) : (
             <span className="text-xs text-slate-400 italic">No actions</span>
           )}
         </div>
       )
-    }
+    },
+    // FIX #8: Add hidden columns for filtering (not displayed in table)
+    { key: "mode_filter", label: "Mode", filterValue: r => r.mode_filter, render: () => null, sortable: false },
+    { key: "status_filter", label: "Status", filterValue: r => r.status_filter, render: () => null, sortable: false }
   ];
 
   const handleReschedule = async (newDate, newStart, newEnd, reason) => {

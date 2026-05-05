@@ -1,7 +1,7 @@
 // useChatEngine.js
 import { useState, useCallback } from "react";
 import { processMessage, resolveInterviewer, checkChosenInterviewer } from "../resolution.js";
-import * as DB from "../db.js";
+import * as DB from "../supabase.js";
 
 // Only real candidates+jobs that exist in the database
 const SUGGESTIONS = [
@@ -110,29 +110,48 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
     addMsg(c); setPending(c);
   }, [addMsg]);
 
+  // FIX #2: Wrap addConfirmedSlot in try-catch with user-friendly error
   const addConfirmedSlot = useCallback(async (emp, slots) => {
     try {
-      await DB.add("interviewer_availability", { employee_id: emp.employee_id, slot_date: slots.date, start_time: slots.time.start, end_time: slots.time.end, status: "confirmed", added_by: currentUser.id, added_by_self: false });
+      await DB.add("interviewer_availability", { 
+        employee_id: emp.employee_id, 
+        slot_date: slots.date, 
+        start_time: slots.time.start, 
+        end_time: slots.time.end, 
+        status: "confirmed", 
+        added_by: currentUser.id, 
+        added_by_self: false 
+      });
       await refreshSnapshot();
       addMsg({ role: "assistant", kind: "text", content: `✅ Confirmed timeslot added for ${emp.name} on ${slots.date} ${slots.time.start}–${slots.time.end}. You can now schedule!` });
-      toast?.success(`Timeslot confirmed for ${emp.name}`);
+      if (toast?.success) toast.success(`Timeslot confirmed for ${emp.name}`);
     } catch (err) {
       console.error("addConfirmedSlot error:", err);
-      addMsg({ role: "assistant", kind: "text", content: `❌ Failed to add timeslot: ${err?.message || "Unknown error"}` });
-      toast?.error("Failed to add timeslot");
+      addMsg({ role: "assistant", kind: "text", content: "Something went wrong. Please try again later." });
+      if (toast?.error) toast.error("Something went wrong. Please try again later.");
     }
   }, [currentUser, refreshSnapshot, addMsg, toast]);
 
+  // FIX #2: Wrap raiseSlotRequest in try-catch with user-friendly error
   const raiseSlotRequest = useCallback(async (emp, slots) => {
     try {
-      await DB.add("time_slot_request", { employee_id: emp.employee_id, requested_by: currentUser.id, slot_date: slots.date, start_time: slots.time.start, end_time: slots.time.end, repeat_pattern: "none", status: "pending", created_at: new Date().toISOString() });
+      await DB.add("time_slot_request", { 
+        employee_id: emp.employee_id, 
+        requested_by: currentUser.id, 
+        slot_date: slots.date, 
+        start_time: slots.time.start, 
+        end_time: slots.time.end, 
+        repeat_pattern: "none", 
+        status: "pending", 
+        created_at: new Date().toISOString() 
+      });
       await refreshSnapshot();
       addMsg({ role: "assistant", kind: "text", content: `⏳ Pending request sent to ${emp.name} for ${slots.date} ${slots.time.start}–${slots.time.end}.` });
-      toast?.success(`Pending request sent to ${emp.name}`);
+      if (toast?.success) toast.success(`Pending request sent to ${emp.name}`);
     } catch (err) {
       console.error("raiseSlotRequest error:", err);
-      addMsg({ role: "assistant", kind: "text", content: `❌ Failed to send request: ${err?.message || "Unknown error"}` });
-      toast?.error("Failed to send slot request");
+      addMsg({ role: "assistant", kind: "text", content: "Something went wrong. Please try again later." });
+      if (toast?.error) toast.error("Something went wrong. Please try again later.");
     }
   }, [currentUser, refreshSnapshot, addMsg, toast]);
 
@@ -154,7 +173,7 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
     const key = scheduleKey(msg);
     if (scheduledKeys.has(key)) {
       addMsg({ role: "assistant", kind: "text", content: "⚠️ This exact combination is already scheduled. Please use a different date, time, or interviewer." });
-      toast?.error("Already scheduled — change date/time/interviewer");
+      if (toast?.error) toast.error("Already scheduled — change date/time/interviewer");
       return;
     }
     try {
@@ -183,11 +202,11 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
       const nextDate = futureDate(3 + Math.floor(Math.random() * 4));
       const nextTime = TIMES[Math.floor(Math.random() * TIMES.length)];
       addMsg({ role: "assistant", kind: "success", interview_id: id, content: `${msg.candidate.candidate.name} with ${msg.interviewer.name} on ${msg.slots.date}, ${msg.slots.time.start}–${msg.slots.time.end}.\n\nNext to schedule? Try:\n"Schedule ${next.round} for ${next.candidate}, ${next.job}, ${nextDate} ${nextTime}, ${next.mode}, with ${next.interviewer}, topic ${next.topic}"` });
-      toast?.success("✅ Interview scheduled!");
+      if (toast?.success) toast.success("✅ Interview scheduled!");
     } catch (err) {
       console.error("confirmSchedule error:", err);
-      addMsg({ role: "assistant", kind: "text", content: `❌ Failed to schedule: ${err?.message || "Unknown error"}. Please try again.` });
-      toast?.error(`Schedule failed: ${err?.message || "Unknown error"}`);
+      addMsg({ role: "assistant", kind: "text", content: "Something went wrong. Please try again later." });
+      if (toast?.error) toast.error("Something went wrong. Please try again later.");
     }
   }, [snapshot, currentUser, refreshSnapshot, addMsg, toast]);
 

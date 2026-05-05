@@ -7,7 +7,7 @@ import { useChatEngine } from "./useChatEngine.js";
 import MessageBubble from "./MessageBubble.jsx";
 import { useToast } from "./Toast.jsx";
 
-export default function ChatbotDock({ snapshot, currentUser, refreshSnapshot, onClose, onJumpToInterviews, prefilledMessage }) {
+export default function ChatbotDock({ snapshot, currentUser, refreshSnapshot, onClose, onJumpToInterviews, onJumpToCandidates, prefilledMessage }) {
   const toast = useToast();
   const engine = useChatEngine({ snapshot, refreshSnapshot, currentUser, toast });
   const scrollRef = useRef(null);
@@ -53,7 +53,14 @@ export default function ChatbotDock({ snapshot, currentUser, refreshSnapshot, on
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-slate-50/60">
         {engine.messages.map(m => (
-          <MessageBubble key={m.id} message={m} snapshot={snapshot} engine={engine} onJumpToInterviews={onJumpToInterviews} />
+          <MessageBubble
+            key={m.id}
+            message={m}
+            snapshot={snapshot}
+            engine={engine}
+            onJumpToInterviews={onJumpToInterviews}
+            onJumpToCandidates={onJumpToCandidates}
+          />
         ))}
         {engine.thinking && (
           <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-300 w-fit">

@@ -1,5 +1,5 @@
 // Recruiter Copilot.jsx - Main app shell with nav + tabs
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sparkles, Home, Users, Briefcase, Calendar, LogOut, ChevronDown, ArrowLeft } from "lucide-react";
 import Dashboard from "./Dashboard.jsx";
 import CandidatesTab from "./CandidatesTab.jsx";
@@ -11,6 +11,8 @@ export default function RecruiterCopilot({ snapshot, refreshSnapshot, currentUse
   const [activeTab, setActiveTab] = useState("dashboard");
   const [dockOpen, setDockOpen] = useState(false);
   const [prefilledMessage, setPrefilledMessage] = useState("");
+  // FIX #4: Add state for candidate highlighting
+  const [highlightCandidates, setHighlightCandidates] = useState([]);
 
   // Cmd/Ctrl+K to toggle dock
   useEffect(() => {
@@ -23,6 +25,18 @@ export default function RecruiterCopilot({ snapshot, refreshSnapshot, currentUse
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
+
+  // FIX #4: Callback to jump to candidates tab with highlighting
+  const handleJumpToCandidates = (candidateIds) => {
+    setActiveTab("candidates");
+    setHighlightCandidates(candidateIds);
+    setDockOpen(false);
+
+    // Clear highlight after 3 seconds
+    setTimeout(() => {
+      setHighlightCandidates([]);
+    }, 3000);
+  };
 
   return (
     <div className="min-h-screen bg-slate-100" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -59,11 +73,10 @@ export default function RecruiterCopilot({ snapshot, refreshSnapshot, currentUse
                   <button
                     key={t.id}
                     onClick={() => setActiveTab(t.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-bold transition ${
-                      activeTab === t.id
-                        ? "bg-blue-600 text-white shadow"
-                        : "text-slate-800 hover:bg-slate-100"
-                    }`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-bold transition ${activeTab === t.id
+                      ? "bg-blue-600 text-white shadow"
+                      : "text-slate-800 hover:bg-slate-100"
+                      }`}
                   >
                     <Icon size={14} />
                     {t.label}
@@ -116,7 +129,13 @@ export default function RecruiterCopilot({ snapshot, refreshSnapshot, currentUse
             }}
           />
         )}
-        {activeTab === "candidates" && <CandidatesTab snapshot={snapshot} />}
+        {/* FIX #4: Pass highlightCandidates to CandidatesTab */}
+        {activeTab === "candidates" && (
+          <CandidatesTab
+            snapshot={snapshot}
+            highlightCandidates={highlightCandidates}
+          />
+        )}
         {activeTab === "employees" && <EmployeesTab snapshot={snapshot} refreshSnapshot={refreshSnapshot} currentUser={currentUser} />}
         {activeTab === "interviews" && <InterviewsTab snapshot={snapshot} refreshSnapshot={refreshSnapshot} currentUser={currentUser} />}
       </main>
@@ -130,6 +149,7 @@ export default function RecruiterCopilot({ snapshot, refreshSnapshot, currentUse
           prefilledMessage={prefilledMessage}
           onClose={() => { setDockOpen(false); setPrefilledMessage(""); }}
           onJumpToInterviews={() => { setActiveTab("interviews"); setDockOpen(false); setPrefilledMessage(""); }}
+          onJumpToCandidates={handleJumpToCandidates}
         />
       )}
     </div>

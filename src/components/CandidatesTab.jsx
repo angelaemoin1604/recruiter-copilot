@@ -1,5 +1,5 @@
 // CandidatesTab.jsx
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import DataTable from "./DataTable.jsx";
 import { ExternalLink, Eye, Download } from "lucide-react";
 import JobDrawer from "./JobDrawer.jsx";
@@ -8,7 +8,7 @@ import { downloadResumePDF } from "../pdf.js";
 import { useToast } from "./Toast.jsx";
 import { formatDate } from "../utils.js";
 
-export default function CandidatesTab({ snapshot }) {
+export default function CandidatesTab({ snapshot, highlightCandidates = [] }) {
   const [jobDrawer, setJobDrawer] = useState(null);
   const [previewFor, setPreviewFor] = useState(null);
   const toast = useToast();
@@ -16,7 +16,9 @@ export default function CandidatesTab({ snapshot }) {
   const rows = snapshot.applications.map(a => {
     const cand = snapshot.candidates.find(c => c.rh_id === a.rh_id);
     const job = snapshot.jobs.find(j => j.job_id === a.job_id);
-    return { ...a, candidate: cand, job };
+    // FIX #4: Check if this candidate should be highlighted
+    const shouldHighlight = highlightCandidates.includes(cand?.rh_id);
+    return { ...a, candidate: cand, job, shouldHighlight };
   }).filter(r => r.candidate && r.job);
 
   const columns = [
@@ -25,7 +27,7 @@ export default function CandidatesTab({ snapshot }) {
       label: "Candidate",
       accessor: r => r.candidate.name,
       render: r => (
-        <div className="flex items-center gap-2.5">
+        <div className={`flex items-center gap-2.5 ${r.shouldHighlight ? 'animate-highlight-pulse' : ''}`}>
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-xs font-bold text-white">
             {r.candidate.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
           </div>
@@ -42,7 +44,7 @@ export default function CandidatesTab({ snapshot }) {
       label: "Job",
       accessor: r => r.job.title,
       render: r => (
-        <div>
+        <div className={r.shouldHighlight ? 'animate-highlight-pulse' : ''}>
           <button onClick={() => setJobDrawer(r.job)} className="font-semibold text-blue-700 hover:text-blue-900 underline text-left">
             {r.job.title}
           </button>
@@ -55,7 +57,7 @@ export default function CandidatesTab({ snapshot }) {
       key: "current_round",
       label: "Round",
       render: r => (
-        <span className="inline-block px-2 py-0.5 bg-indigo-50 text-indigo-800 border border-indigo-300 text-xs font-semibold rounded">
+        <span className={`inline-block px-2 py-0.5 bg-indigo-50 text-indigo-800 border border-indigo-300 text-xs font-semibold rounded ${r.shouldHighlight ? 'animate-highlight-pulse' : ''}`}>
           {r.current_round}
         </span>
       ),
@@ -73,7 +75,7 @@ export default function CandidatesTab({ snapshot }) {
           red: "bg-red-50 text-red-900 border-red-300"
         };
         return (
-          <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded border ${colors[color]}`}>
+          <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded border ${colors[color]} ${r.shouldHighlight ? 'animate-highlight-pulse' : ''}`}>
             {r.match_score}%
           </span>
         );
@@ -90,7 +92,7 @@ export default function CandidatesTab({ snapshot }) {
     {
       key: "applied_at",
       label: "Applied",
-      render: r => <span className="text-xs text-slate-800">{formatDate(r.applied_at)}</span>,
+      render: r => <span className={`text-xs text-slate-800 ${r.shouldHighlight ? 'animate-highlight-pulse' : ''}`}>{formatDate(r.applied_at)}</span>,
       filterValue: r => { const d = new Date(r.applied_at + "T00:00:00"); const day = d.getDate(); const months = ["January","February","March","April","May","June","July","August","September","October","November","December"]; return `${day} ${months[d.getMonth()]} ${d.getFullYear()}`; }
     },
     {
@@ -101,7 +103,7 @@ export default function CandidatesTab({ snapshot }) {
       render: r => {
         const jobSkills = snapshot.job_required_skill.filter(s => s.job_id === r.job_id);
         return (
-          <div className="flex items-center gap-1.5">
+          <div className={`flex items-center gap-1.5 ${r.shouldHighlight ? 'animate-highlight-pulse' : ''}`}>
             <button
               onClick={() => setPreviewFor({ candidate: r.candidate, application: r, job: r.job, jobSkills })}
               className="p-1.5 bg-blue-50 border border-blue-300 text-blue-800 hover:bg-blue-100 rounded"
@@ -127,6 +129,26 @@ export default function CandidatesTab({ snapshot }) {
 
   return (
     <div>
+      {/* FIX #4: Add CSS for highlight animation */}
+      <style>{`
+        @keyframes highlight-pulse {
+          0%, 100% {
+            background-color: rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+          }
+          50% {
+            background-color: rgba(59, 130, 246, 0.25);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+          }
+        }
+        .animate-highlight-pulse {
+          animation: highlight-pulse 1.5s ease-in-out 2;
+          border-radius: 4px;
+          padding: 2px 4px;
+          margin: -2px -4px;
+        }
+      `}</style>
+      
       <DataTable
         rows={rows}
         columns={columns}

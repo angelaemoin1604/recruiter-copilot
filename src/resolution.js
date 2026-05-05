@@ -188,17 +188,11 @@ export function processMessage(text, db) {
     };
   }
 
-  const missing = [];
-  if (!slots.candidate_name) missing.push("candidate name");
-  if (!slots.job) missing.push("job");
-  if (!slots.round_name) missing.push("round");
-  if (!slots.date) missing.push("date");
-  if (!slots.time) missing.push("time range");
-
-  if (missing.length > 0) {
+  // FIX #1: Check validation_errors first
+  if (slots.validation_errors && slots.validation_errors.length > 0) {
     return {
       kind: "ask_missing",
-      content: `I need a few more details before scheduling: **${missing.join(", ")}**.`,
+      content: `I need a few more details before scheduling: **${slots.validation_errors.join(", ")}**.`,
       slots
     };
   }
