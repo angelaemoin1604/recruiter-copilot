@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import ChatbotMini from "./ChatbotMini.jsx";
 
-export default function RippleHireReplica({ db, snapshot, currentUser, onOpenRecruiterCopilot, onLogout }) {
+export default function RippleHireReplica({ db, snapshot, currentUser, onOpenRecruiterCopilot, onLogout, refreshSnapshot }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [pulse, setPulse] = useState(true);
 
@@ -213,12 +213,13 @@ export default function RippleHireReplica({ db, snapshot, currentUser, onOpenRec
       {/* Mini chatbot modal */}
       {chatOpen && (
         <ChatbotMini
-          db={db}
-          snapshot={snapshot}
-          currentUser={currentUser}
-          onClose={() => setChatOpen(false)}
-          onOpenDashboard={() => { setChatOpen(false); onOpenRecruiterCopilot(); }}
-        />
+  		db={db}
+  		snapshot={snapshot}
+  		currentUser={currentUser}
+  		refreshSnapshot={refreshSnapshot}  // ← ADD THIS!
+  		onClose={() => setChatOpen(false)}
+ 		 onOpenDashboard={() => { setChatOpen(false); onOpenRecruiterCopilot(); }}
+	/>
       )}
     </div>
   );

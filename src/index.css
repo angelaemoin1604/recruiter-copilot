@@ -118,3 +118,79 @@
 .animate-pop-in { animation: pop-in 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
 .animate-fade-in { animation: fade-in 0.4s ease-in; }
 .animate-slide-up { animation: slide-up 0.3s ease-out; }
+
+/* ===== BATTERY FILL ANIMATION - LEFT TO RIGHT ===== */
+@keyframes battery-fill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.battery-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease;
+}
+
+.battery-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  z-index: 0;
+  transition: none;
+}
+
+.battery-card:hover {
+  transform: translateY(-2px);
+}
+
+.battery-card:hover::before {
+  animation: battery-fill 1.5s ease-out forwards;
+}
+
+.battery-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Individual colored fill effects for each card */
+.battery-amber::before {
+  background: linear-gradient(to right, 
+    rgba(251, 191, 36, 0.4), 
+    rgba(245, 158, 11, 0.6)
+  );
+}
+
+.battery-blue::before {
+  background: linear-gradient(to right, 
+    rgba(59, 130, 246, 0.4), 
+    rgba(37, 99, 235, 0.6)
+  );
+}
+
+.battery-purple::before {
+  background: linear-gradient(to right, 
+    rgba(168, 85, 247, 0.4), 
+    rgba(147, 51, 234, 0.6)
+  );
+}
+
+.battery-pink::before {
+  background: linear-gradient(to right, 
+    rgba(236, 72, 153, 0.4), 
+    rgba(219, 39, 119, 0.6)
+  );
+}
+
+.battery-green::before {
+  background: linear-gradient(to right, 
+    rgba(52, 211, 153, 0.4), 
+    rgba(16, 185, 129, 0.6)
+  );
+}

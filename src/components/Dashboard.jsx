@@ -296,15 +296,15 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
           </button>
         </div>
         <div className="flex items-end gap-2">
-          <FunnelStage label="Shortlisted" count={funnel["Shortlisted"]} total={stats.activeApps} color="bg-slate-400" onClick={() => onSwitchTab("candidates")} />
+          <FunnelStage label="Shortlisted" count={funnel["Shortlisted"]} total={stats.activeApps} color="battery-card battery-amber bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 text-amber-900" onClick={() => onSwitchTab("candidates")} />
           <ArrowRight size={14} className="text-slate-400 mb-6 flex-shrink-0" />
-          <FunnelStage label="Interview 1" count={funnel["Interview 1"]} total={stats.activeApps} color="bg-blue-500" onClick={() => onSwitchTab("candidates")} />
+          <FunnelStage label="Interview 1" count={funnel["Interview 1"]} total={stats.activeApps} color="battery-card battery-blue bg-gradient-to-br from-blue-50 to-sky-50 border-2 border-blue-300 text-blue-900" onClick={() => onSwitchTab("candidates")} />
           <ArrowRight size={14} className="text-slate-400 mb-6 flex-shrink-0" />
-          <FunnelStage label="Interview 2" count={funnel["Interview 2"]} total={stats.activeApps} color="bg-indigo-500" onClick={() => onSwitchTab("candidates")} />
+          <FunnelStage label="Interview 2" count={funnel["Interview 2"]} total={stats.activeApps} color="battery-card battery-purple bg-gradient-to-br from-purple-50 to-violet-50 border-2 border-purple-300 text-purple-900" onClick={() => onSwitchTab("candidates")} />
           <ArrowRight size={14} className="text-slate-400 mb-6 flex-shrink-0" />
-          <FunnelStage label="Client" count={funnel["Client"]} total={stats.activeApps} color="bg-purple-500" onClick={() => onSwitchTab("candidates")} />
+          <FunnelStage label="Client" count={funnel["Client"]} total={stats.activeApps} color="battery-card battery-pink bg-gradient-to-br from-pink-50 to-rose-50 border-2 border-pink-300 text-pink-900" onClick={() => onSwitchTab("candidates")} />
           <ArrowRight size={14} className="text-slate-400 mb-6 flex-shrink-0" />
-          <FunnelStage label="HR Stage" count={funnel["HR Stage"]} total={stats.activeApps} color="bg-emerald-500" onClick={() => onSwitchTab("candidates")} />
+          <FunnelStage label="HR Stage" count={funnel["HR Stage"]} total={stats.activeApps} color="battery-card battery-green bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-300 text-emerald-900" onClick={() => onSwitchTab("candidates")} />
         </div>
       </div>
 

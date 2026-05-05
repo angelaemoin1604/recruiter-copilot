@@ -1,6 +1,30 @@
 // MessageBubble.jsx
 import { Sparkles, ChevronRight, CheckCircle2, ArrowRight, Plus, Clock } from "lucide-react";
 
+function getOrdinalSuffix(day) {
+  if (day > 3 && day < 21) return 'th';
+  switch (day % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
+}
+
+function formatDateDisplay(dateStr) {
+  // Convert "2026-05-01" to "1st May 2026"
+  if (!dateStr) return dateStr;
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const monthNum = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    return `${day}${getOrdinalSuffix(day)} ${months[monthNum]} ${year}`;
+  }
+  return dateStr;
+}
+
 function Pill({ children, color = "slate" }) {
   const c = { slate: "bg-slate-100 text-slate-800 border-slate-300", blue: "bg-blue-50 text-blue-800 border-blue-300", green: "bg-emerald-50 text-emerald-800 border-emerald-300", amber: "bg-amber-50 text-amber-900 border-amber-300", red: "bg-red-50 text-red-800 border-red-300", indigo: "bg-indigo-50 text-indigo-800 border-indigo-300" };
   return <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded border ${c[color] || c.slate}`}>{children}</span>;
@@ -17,7 +41,7 @@ function BotBubble({ content, accent }) {
   );
 }
 
-export default function MessageBubble({ message, snapshot, engine, onJumpToInterviews }) {
+export default function MessageBubble({ message, snapshot, engine, onJumpToInterviews, onSuggestionClick, suggestionText = null }) {
   if (message.role === "user") {
     return (
       <div className="flex justify-end animate-slide-up">
@@ -30,7 +54,47 @@ export default function MessageBubble({ message, snapshot, engine, onJumpToInter
     <div className="flex animate-slide-up">
       <div className="flex-1 max-w-[95%] space-y-2">
 
-        {message.kind === "text" && <BotBubble content={message.content} />}
+        {message.kind === "text" && (
+          <>
+            <BotBubble content={message.content} />
+            {suggestionText && onSuggestionClick && (
+              <button
+                onClick={() => onSuggestionClick(suggestionText)}
+                className="w-full text-left px-3 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 hover:border-blue-400 rounded-lg transition group flex items-center gap-2"
+              >
+                <Sparkles size={14} className="text-blue-600 flex-shrink-0" />
+                <span className="text-xs font-medium text-slate-700 flex-1">Click to auto-fill: <span className="text-blue-700 font-semibold">{suggestionText}</span></span>
+                <ArrowRight size={14} className="text-blue-600 group-hover:translate-x-1 transition" />
+              </button>
+            )}
+          </>
+        )}
+        
+        {message.kind === "success" && (
+          <>
+            <div className="bg-emerald-50 border-2 border-emerald-400 rounded-lg p-3 shadow">
+              <div className="flex items-start gap-2 mb-2">
+                <CheckCircle2 size={20} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-bold text-sm text-emerald-900">Interview Scheduled! ✅</div>
+                  <div className="text-xs text-emerald-800 mt-1 whitespace-pre-wrap">{message.content}</div>
+                </div>
+              </div>
+              {onJumpToInterviews && <button onClick={onJumpToInterviews} className="w-full mt-2 text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline">View in Interviews tab →</button>}
+            </div>
+            {suggestionText && onSuggestionClick && (
+              <button
+                onClick={() => onSuggestionClick(suggestionText)}
+                className="w-full text-left px-3 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 hover:border-blue-400 rounded-lg transition group flex items-center gap-2"
+              >
+                <Sparkles size={14} className="text-blue-600 flex-shrink-0" />
+                <span className="text-xs font-medium text-slate-700 flex-1">Click to auto-fill: <span className="text-blue-700 font-semibold">{suggestionText}</span></span>
+                <ArrowRight size={14} className="text-blue-600 group-hover:translate-x-1 transition" />
+              </button>
+            )}
+          </>
+        )}
+        
         {message.kind === "ask_missing" && <BotBubble content={message.content} accent="amber" />}
 
         {message.kind === "candidate_disambig" && (
@@ -79,14 +143,14 @@ export default function MessageBubble({ message, snapshot, engine, onJumpToInter
 
         {message.kind === "no_slot" && (
           <div className="space-y-2">
-            <BotBubble content={`${message.interviewer?.name} is qualified but has no confirmed slot at ${message.slots?.date} ${message.slots?.time?.start}–${message.slots?.time?.end}.`} accent="amber" />
+            <BotBubble content={`${message.interviewer?.name} is qualified but has no confirmed slot at ${formatDateDisplay(message.slots?.date)}, ${message.slots?.time?.start}–${message.slots?.time?.end}.`} accent="amber" />
 
             {(message.nearby || []).length > 0 && (
               <div className="bg-white border-2 border-slate-200 rounded-lg p-3">
                 <div className="text-xs font-bold text-slate-700 mb-2">a) Use a nearby available slot:</div>
                 {message.nearby.slice(0, 3).map((s, i) => (
                   <button key={i} onClick={() => engine.chooseNearbySlot(s, message.interviewer, message.slots, message.candidate)} className="w-full flex items-center gap-2 px-2 py-1.5 mb-1 bg-emerald-50 border border-emerald-300 rounded text-xs hover:bg-emerald-100 text-slate-900">
-                    <CheckCircle2 size={12} className="text-emerald-600" /><span className="font-semibold">{s.slot_date}</span><span>{s.start_time}–{s.end_time}</span><ArrowRight size={10} className="ml-auto text-emerald-700" />
+                    <CheckCircle2 size={12} className="text-emerald-600" /><span className="font-semibold">{formatDateDisplay(s.slot_date)}</span><span>{s.start_time}–{s.end_time}</span><ArrowRight size={10} className="ml-auto text-emerald-700" />
                   </button>
                 ))}
               </div>
@@ -126,13 +190,13 @@ export default function MessageBubble({ message, snapshot, engine, onJumpToInter
 
         {message.kind === "no_availability" && (
           <div className="space-y-2">
-            <BotBubble content={`No qualified interviewer has a confirmed slot at ${message.slots?.date} ${message.slots?.time?.start}–${message.slots?.time?.end}. Top options:`} accent="amber" />
+            <BotBubble content={`No qualified interviewer has a confirmed slot at ${formatDateDisplay(message.slots?.date)}, ${message.slots?.time?.start}–${message.slots?.time?.end}. Top options:`} accent="amber" />
             {(message.top3 || []).map((item, i) => (
               <div key={i} className="bg-white border-2 border-slate-200 rounded-lg p-3 space-y-2">
                 <div className="flex items-center justify-between"><div><div className="font-bold text-sm text-slate-900">{item.emp.name}</div><div className="mono text-[10px] text-slate-600">{item.emp.employee_id} · {item.emp.department}</div></div><Pill color="blue">Score {item.score}</Pill></div>
                 {(item.nearby || []).slice(0,2).map((s,j) => (
                   <button key={j} onClick={() => engine.chooseNearbySlot(s, item.emp, message.slots, message.candidate)} className="w-full flex items-center gap-2 px-2 py-1 bg-emerald-50 border border-emerald-300 rounded text-xs hover:bg-emerald-100 text-slate-900">
-                    <CheckCircle2 size={10} className="text-emerald-600" /><span>{s.slot_date} {s.start_time}–{s.end_time}</span><ArrowRight size={9} className="ml-auto" />
+                    <CheckCircle2 size={10} className="text-emerald-600" /><span>{formatDateDisplay(s.slot_date)}, {s.start_time}–{s.end_time}</span><ArrowRight size={9} className="ml-auto" />
                   </button>
                 ))}
                 <button onClick={() => engine.addConfirmedSlot(item.emp, message.slots)} className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition">
@@ -170,7 +234,7 @@ export default function MessageBubble({ message, snapshot, engine, onJumpToInter
               </div>
               <div className="border-t border-slate-100 pt-2">
                 <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">When</div>
-                <div className="font-bold text-slate-900">{message.slots?.date} · {message.slots?.time?.start} – {message.slots?.time?.end}</div>
+                <div className="font-bold text-slate-900">{formatDateDisplay(message.slots?.date)}, {message.slots?.time?.start}–{message.slots?.time?.end}</div>
               </div>
               <div className="border-t border-slate-100 pt-2 flex flex-wrap gap-1.5">
                 <Pill color="blue">{message.slots?.mode || "Video"}</Pill>
@@ -182,16 +246,6 @@ export default function MessageBubble({ message, snapshot, engine, onJumpToInter
               <button onClick={() => engine.confirmSchedule(message)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-md text-sm font-bold shadow">Confirm & Schedule</button>
               <button onClick={engine.cancelConfirm} className="px-4 py-2 border-2 border-slate-300 rounded-md text-sm font-semibold text-slate-800 hover:bg-white">Cancel</button>
             </div>
-          </div>
-        )}
-
-        {message.kind === "success" && (
-          <div className="bg-emerald-50 border-2 border-emerald-400 rounded-lg p-3 shadow">
-            <div className="flex items-start gap-2 mb-2">
-              <CheckCircle2 size={20} className="text-emerald-600 flex-shrink-0 mt-0.5" />
-              <div><div className="font-bold text-sm text-emerald-900">Interview Scheduled! ✅</div><div className="text-xs text-emerald-800 mt-1 whitespace-pre-wrap">{message.content}</div></div>
-            </div>
-            {onJumpToInterviews && <button onClick={onJumpToInterviews} className="w-full mt-2 text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline">View in Interviews tab →</button>}
           </div>
         )}
 

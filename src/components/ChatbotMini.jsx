@@ -54,8 +54,15 @@ export default function ChatbotMini({ db, snapshot, currentUser, onClose, onOpen
 
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3 bg-slate-50/60">
-          {engine.messages.map(m => (
-            <MessageBubble key={m.id} message={m} snapshot={snapshot} engine={engine} />
+          {engine.messages.map((m, idx) => (
+            <MessageBubble 
+              key={m.id} 
+              message={m} 
+              snapshot={snapshot} 
+              engine={engine}
+              onSuggestionClick={(text) => engine.setInput(text)}
+              suggestionText={idx === engine.messages.length - 1 ? engine.currentSuggestion : null}
+            />
           ))}
           {engine.thinking && (
             <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-300 w-fit">
@@ -72,7 +79,7 @@ export default function ChatbotMini({ db, snapshot, currentUser, onClose, onOpen
               value={engine.input}
               onChange={e => engine.setInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); engine.send(); } }}
-              rows={2}
+              rows={3}
               placeholder="Schedule Interview 1 for..."
               className="flex-1 resize-none px-3 py-2 text-sm border-2 border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 placeholder:text-slate-500"
             />

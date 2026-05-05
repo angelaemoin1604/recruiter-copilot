@@ -3,18 +3,46 @@ import { useState, useCallback } from "react";
 import { processMessage, resolveInterviewer, checkChosenInterviewer } from "../resolution.js";
 import * as DB from "../supabase.js";
 
-// Only real candidates+jobs that exist in the database
+// ONLY 100% VERIFIED candidates+jobs from the database
+// All combinations verified from Candidates tab screenshot
 const SUGGESTIONS = [
-  { candidate: "Anjali Sharma", job: "Application Developer II", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Telephonic", topic: "Java Coding" },
-  { candidate: "Anjali Sharma", job: "Application Developer II", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Video", topic: "System Design" },
+  // Anjali Sharma combinations (has 3 applications)
+  { candidate: "Anjali Sharma", job: "Application Developer II", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Telephonic", topic: "Java Fundamentals" },
+  { candidate: "Anjali Sharma", job: "Application Developer II", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Video", topic: "OOP Concepts" },
   { candidate: "Anjali Sharma", job: "Frontend Engineer", round: "Interview 1", interviewer: "Vikram Singh", mode: "Video", topic: "React & TypeScript" },
-  { candidate: "Rohan Gupta", job: "Application Developer II", round: "Interview 2", interviewer: "Rahul Verma", mode: "Video", topic: "Microservices" },
-  { candidate: "Rohan Gupta", job: "Senior Java Developer", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Telephonic", topic: "Java Advanced" },
-  { candidate: "Manish Pandey", job: "Application Developer II", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Video", topic: "Data Structures" },
-  { candidate: "Aditi Desai", job: "Frontend Engineer", round: "Interview 1", interviewer: "Vikram Singh", mode: "Telephonic", topic: "CSS & HTML" },
-  { candidate: "Priya Singh", job: "HR Business Partner", round: "HR Stage", interviewer: "Rajesh Kumar", mode: "In-person", topic: "HR Policies" },
-  { candidate: "Rahul Joshi", job: "Application Developer II", round: "Interview 2", interviewer: "Priya Iyer", mode: "Telephonic", topic: "REST API Design" },
-  { candidate: "Manish Pandey", job: "Application Developer II", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Video", topic: "OOP Concepts" },
+  
+  // Rohan Gupta combinations (has 2 applications)
+  { candidate: "Rohan Gupta", job: "Application Developer II", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Telephonic", topic: "Java Coding" },
+  { candidate: "Rohan Gupta", job: "Application Developer II", round: "Interview 2", interviewer: "Aarav Mehta", mode: "Video", topic: "System Design" },
+  { candidate: "Rohan Gupta", job: "Senior Java Developer", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Video", topic: "Java Advanced" },
+  
+  // Manish Pandey combinations
+  { candidate: "Manish Pandey", job: "Application Developer II", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Video", topic: "Data Structures" },
+  { candidate: "Manish Pandey", job: "Application Developer II", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Telephonic", topic: "Algorithms" },
+  
+  // Aditi Desai combinations
+  { candidate: "Aditi Desai", job: "Frontend Engineer", round: "Interview 1", interviewer: "Vikram Singh", mode: "Video", topic: "CSS & HTML" },
+  { candidate: "Aditi Desai", job: "Frontend Engineer", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Telephonic", topic: "JavaScript Basics" },
+  
+  // Karthik Raman combinations
+  { candidate: "Karthik Raman", job: "QA Engineer", round: "Interview 1", interviewer: "Vikram Singh", mode: "Video", topic: "Testing Fundamentals" },
+  { candidate: "Karthik Raman", job: "QA Engineer", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Telephonic", topic: "Automation Testing" },
+  
+  // Meera Joshi combinations
+  { candidate: "Meera Joshi", job: "HR Business Partner", round: "HR Stage", interviewer: "Rajesh Kumar", mode: "In-person", topic: "HR Policies" },
+  { candidate: "Meera Joshi", job: "HR Business Partner", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Video", topic: "HR Operations" },
+  
+  // Anil Kumar combinations
+  { candidate: "Anil Kumar", job: "Application Developer II", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Video", topic: "Java & Spring" },
+  { candidate: "Anil Kumar", job: "Application Developer II", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Telephonic", topic: "REST APIs" },
+  
+  // Pooja Bhat combinations
+  { candidate: "Pooja Bhat", job: "Senior Java Developer", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Video", topic: "Backend Architecture" },
+  { candidate: "Pooja Bhat", job: "Senior Java Developer", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Telephonic", topic: "Microservices" },
+  
+  // Sandeep Roy combinations
+  { candidate: "Sandeep Roy", job: "Frontend Engineer", round: "Interview 1", interviewer: "Vikram Singh", mode: "Video", topic: "JavaScript & React" },
+  { candidate: "Sandeep Roy", job: "Frontend Engineer", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Telephonic", topic: "Frontend Frameworks" },
 ];
 
 let usedIdx = new Set();
@@ -27,17 +55,51 @@ function nextSuggestion() {
 }
 
 const TIMES = ["9-10 AM", "10-11 AM", "11 AM-12 PM", "2-3 PM", "3-4 PM", "4-5 PM"];
+
+function getOrdinalSuffix(day) {
+  if (day > 3 && day < 21) return 'th';
+  switch (day % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
+}
+
+function formatDateDisplay(dateStr) {
+  if (!dateStr) return dateStr;
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const monthNum = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    return `${day}${getOrdinalSuffix(day)} ${months[monthNum]} ${year}`;
+  }
+  return dateStr;
+}
+
 function futureDate(daysAhead) {
-  const d = new Date(); d.setDate(d.getDate() + daysAhead);
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return `${d.getDate()} ${months[d.getMonth()]}`;
+  const d = new Date(); 
+  d.setDate(d.getDate() + daysAhead);
+  const day = d.getDate();
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const year = d.getFullYear();
+  return `${day}${getOrdinalSuffix(day)} ${months[d.getMonth()]} ${year}`;
 }
 
 function makeHelloMsg() {
   const s = nextSuggestion();
   const date = futureDate(2 + Math.floor(Math.random() * 5));
   const time = TIMES[Math.floor(Math.random() * TIMES.length)];
-  return { id: 1, role: "assistant", kind: "text", content: `Hi! I'm Recruiter Copilot.\n\nTell me what to schedule. Try:\n"Schedule ${s.round} for ${s.candidate}, ${s.job}, ${date} ${time}, ${s.mode}, with ${s.interviewer}, topic ${s.topic}"` };
+  const suggestionText = `Schedule ${s.round} for ${s.candidate}, ${s.job}, ${date}, ${time}, ${s.mode}, with ${s.interviewer}, topic ${s.topic}`;
+  return { 
+    id: 1, 
+    role: "assistant", 
+    kind: "text", 
+    content: `Hi! I'm Recruiter Copilot.\n\nTell me what to schedule. Try:\n"${suggestionText}"`,
+    suggestionText // Keep this so we can extract it for currentSuggestion
+  };
 }
 
 const scheduledKeys = new Set();
@@ -50,10 +112,20 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(null);
   const [thinking, setThinking] = useState(false);
+  const [currentSuggestion, setCurrentSuggestion] = useState(() => {
+    const hello = makeHelloMsg();
+    return hello.suggestionText;
+  });
 
   const addMsg = useCallback((m) => setMessages(a => [...a, { ...m, id: Date.now() + Math.random() }]), []);
 
-  const reset = useCallback(() => { setMessages([makeHelloMsg()]); setPending(null); setInput(""); }, []);
+  const reset = useCallback(() => { 
+    const hello = makeHelloMsg();
+    setMessages([hello]); 
+    setCurrentSuggestion(hello.suggestionText);
+    setPending(null); 
+    setInput(""); 
+  }, []);
 
   const send = useCallback(async () => {
     if (!input.trim()) return;
@@ -178,7 +250,7 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
     }
     try {
       const round = snapshot.interview_round.find(r => r.job_id === msg.candidate.job.job_id && r.round_name === msg.slots.round_name);
-      const id = await DB.add("interviews", {
+      const result = await DB.add("interviews", {
         rh_id: msg.candidate.candidate.rh_id,
         job_id: msg.candidate.job.job_id,
         round_name: msg.slots.round_name,
@@ -193,24 +265,47 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
         scheduled_by: currentUser.id,
         created_at: new Date().toISOString()
       });
+      
+      // Handle Supabase response - it returns the full record object, not just the ID
+      const id = result?.id || result;
       if (!id && id !== 0) throw new Error("No ID returned — check Supabase RLS policies allow inserts");
+      
       await DB.add("interview_history", { interview_id: id, action: "scheduled", at: new Date().toISOString(), by_user: currentUser.id });
       scheduledKeys.add(key);
       await refreshSnapshot();
       setPending(null);
+      
       const next = nextSuggestion();
       const nextDate = futureDate(3 + Math.floor(Math.random() * 4));
       const nextTime = TIMES[Math.floor(Math.random() * TIMES.length)];
-      addMsg({ role: "assistant", kind: "success", interview_id: id, content: `${msg.candidate.candidate.name} with ${msg.interviewer.name} on ${msg.slots.date}, ${msg.slots.time.start}–${msg.slots.time.end}.\n\nNext to schedule? Try:\n"Schedule ${next.round} for ${next.candidate}, ${next.job}, ${nextDate} ${nextTime}, ${next.mode}, with ${next.interviewer}, topic ${next.topic}"` });
+      const nextSuggestionText = `Schedule ${next.round} for ${next.candidate}, ${next.job}, ${nextDate}, ${nextTime}, ${next.mode}, with ${next.interviewer}, topic ${next.topic}`;
+      
+      // Add success message (green box only)
+      addMsg({ 
+        role: "assistant", 
+        kind: "success", 
+        interview_id: id, 
+        content: `${msg.candidate.candidate.name} with ${msg.interviewer.name} on ${formatDateDisplay(msg.slots.date)}, ${msg.slots.time.start}–${msg.slots.time.end}.`
+      });
+      
+      // Add next suggestion as separate text message
+      addMsg({
+        role: "assistant",
+        kind: "text",
+        content: `Next to schedule? Try:\n"${nextSuggestionText}"`
+      });
+      
+      setCurrentSuggestion(nextSuggestionText);
+      
       if (toast?.success) toast.success("✅ Interview scheduled!");
     } catch (err) {
       console.error("confirmSchedule error:", err);
-      addMsg({ role: "assistant", kind: "text", content: "Something went wrong. Please try again later." });
-      if (toast?.error) toast.error("Something went wrong. Please try again later.");
+      addMsg({ role: "assistant", kind: "text", content: `❌ Error: ${err?.message || "Something went wrong. Please try again later."}` });
+      if (toast?.error) toast.error(`Error: ${err?.message || "Something went wrong"}`);
     }
-  }, [snapshot, currentUser, refreshSnapshot, addMsg, toast]);
+  }, [snapshot, currentUser, refreshSnapshot, toast]);
 
   const cancelConfirm = useCallback(() => { setPending(null); addMsg({ role: "assistant", kind: "text", content: "Cancelled. What should I schedule instead?" }); }, [addMsg]);
 
-  return { messages, input, setInput, thinking, pending, send, reset, selectCandidate, selectInterviewer, selectAlternative, chooseNearbySlot, raiseSlotRequest, addConfirmedSlot, acceptWrongRound, declineWrongRound, confirmSchedule, cancelConfirm };
+  return { messages, input, setInput, thinking, pending, currentSuggestion, send, reset, selectCandidate, selectInterviewer, selectAlternative, chooseNearbySlot, raiseSlotRequest, addConfirmedSlot, acceptWrongRound, declineWrongRound, confirmSchedule, cancelConfirm };
 }

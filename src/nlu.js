@@ -80,7 +80,7 @@ export function parseMode(text) {
 }
 
 export function parseTopic(text) {
-  const m = text.match(/topic\s+(?:is\s+)?["']?([A-Za-z][A-Za-z0-9\s+#.]{2,40}?)["']?(?=\s*(?:,|\.|with|on|for|at|$))/i);
+  const m = text.match(/topic\s+(?:is\s+)?["']?([A-Za-z][A-Za-z0-9\s+&#./()-]{2,50}?)["']?(?=\s*(?:,|\.|with|on|for|at|$))/i);
   return m ? m[1].trim() : null;
 }
 

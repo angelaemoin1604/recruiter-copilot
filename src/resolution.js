@@ -87,9 +87,26 @@ export function findAvailability(empId, date, startTime, endTime, db) {
   );
   const covering = slots.find(s => s.start_time <= startTime && s.end_time >= endTime);
   if (covering) return { available: true, slot: covering };
-  const nearby = db.interviewer_availability.filter(s =>
-    s.employee_id === empId && s.status === "confirmed"
-  );
+  
+  // Get current date and time
+  const now = new Date();
+  const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  const currentTime = now.toTimeString().slice(0, 5); // HH:MM
+  
+  // Filter nearby slots to only include future dates/times
+  const nearby = db.interviewer_availability.filter(s => {
+    if (s.employee_id !== empId || s.status !== "confirmed") return false;
+    
+    // If slot date is in the future, include it
+    if (s.slot_date > currentDate) return true;
+    
+    // If slot date is today, only include if start time is in the future
+    if (s.slot_date === currentDate && s.start_time > currentTime) return true;
+    
+    // Otherwise, it's in the past - exclude it
+    return false;
+  });
+  
   return { available: false, nearby };
 }
 
@@ -188,11 +205,11 @@ export function processMessage(text, db) {
     };
   }
 
-  // FIX #1: Check validation_errors first
-  if (slots.validation_errors && slots.validation_errors.length > 0) {
+  // FIX #1: Check for validation errors from extractSlots
+  if (slots.validation_error && slots.validation_error.length > 0) {
     return {
       kind: "ask_missing",
-      content: `I need a few more details before scheduling: **${slots.validation_errors.join(", ")}**.`,
+      content: `❌ Missing required information:\n\n${slots.validation_error.map(field => `• ${field}`).join('\n')}\n\nPlease provide all details to schedule the interview.`,
       slots
     };
   }
