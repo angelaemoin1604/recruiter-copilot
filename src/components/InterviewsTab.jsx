@@ -22,7 +22,7 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
     const interviewer = snapshot.employees.find(e => e.employee_id === i.interviewer_id);
     const histories = snapshot.interview_history.filter(h => h.interview_id === i.id);
     const wasRescheduled = histories.some(h => h.action === "rescheduled");
-    // FIX #8 & #9: Add mode_filter and status_filter for DataTable filtering, capitalize first letter
+    // Add mode_filter and status_filter for filtering (hidden from table, visible in filters)
     const status_filter = i.status.charAt(0).toUpperCase() + i.status.slice(1);
     return { ...i, candidate: cand, job, interviewer, wasRescheduled, mode_filter: i.mode, status_filter };
   }).filter(r => r.candidate && r.job && r.interviewer);
@@ -47,7 +47,6 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
     },
     { key: "slot_date", label: "Date", render: r => <span className="text-xs font-semibold text-slate-900">{formatDate(r.slot_date)}</span>, filterValue: r => r.slot_date },
     { key: "time", label: "Time", render: r => <span className="text-xs text-slate-800">{formatTime(r.start_time)}–{formatTime(r.end_time)}</span>, sortable: false },
-    // FIX #8: Removed Mode and Status columns from table display, but kept in filters via mode_filter and status_filter
     { key: "interviewer_name", label: "Interviewer", accessor: r => r.interviewer.name, render: r => <span className="text-xs font-medium text-slate-900">{r.interviewer.name}</span>, filterValue: r => r.interviewer.name },
     { key: "round_name", label: "Round", render: r => <span className="inline-block px-2 py-0.5 bg-indigo-50 text-indigo-800 border border-indigo-300 text-xs font-semibold rounded">{r.round_name}</span>, filterValue: r => r.round_name },
     {
@@ -72,7 +71,7 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
                 >
                   <Edit2 size={16} className="text-slate-700" />
                 </button>
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 bg-slate-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
                   Edit Interview
                 </div>
               </div>
@@ -84,7 +83,7 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
                 >
                   <Trash2 size={16} className="text-red-600" />
                 </button>
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 bg-slate-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
                   Cancel interview
                 </div>
               </div>
@@ -95,10 +94,13 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
         </div>
       )
     },
-    // FIX #8: Add hidden columns for filtering (not displayed in table)
-    { key: "mode_filter", label: "Mode", filterValue: r => r.mode_filter, render: () => null, sortable: false },
-    { key: "status_filter", label: "Status", filterValue: r => r.status_filter, render: () => null, sortable: false }
+    // Hidden columns for filtering only (appear in filter dropdowns, not in table)
+    { key: "mode_filter", label: "Mode", filterValue: r => r.mode_filter, render: () => null, sortable: false, hidden: true },
+    { key: "status_filter", label: "Status", filterValue: r => r.status_filter, render: () => null, sortable: false, hidden: true }
   ];
+
+  // Filter out hidden columns for table display only
+  const visibleColumns = columns.filter(col => !col.hidden);
 
   const handleReschedule = async (newDate, newStart, newEnd, reason) => {
     setSaving(true);
@@ -131,7 +133,7 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
 
   return (
     <div>
-      <DataTable rows={rows} columns={columns} searchPlaceholder="Search by candidate, interviewer..." searchableFields={[r => r.candidate.name, r => r.interviewer.name, r => r.job.title]} emptyMessage="No interviews scheduled yet" rowKey={r => r.id} inlineSearch={true} />
+      <DataTable rows={rows} columns={visibleColumns} allColumns={columns} searchPlaceholder="Search by candidate, interviewer..." searchableFields={[r => r.candidate.name, r => r.interviewer.name, r => r.job.title]} emptyMessage="No interviews scheduled yet" rowKey={r => r.id} inlineSearch={true} />
       {detailFor && <InterviewDetailPopup interview={detailFor} snapshot={snapshot} onClose={() => setDetailFor(null)} />}
       {rescheduleFor && <RescheduleForm interview={rescheduleFor} onClose={() => setRescheduleFor(null)} saving={saving} onSave={handleReschedule} />}
       {cancelFor && <CancelInterviewForm interview={cancelFor} onClose={() => setCancelFor(null)} saving={saving} onSave={handleCancel} />}

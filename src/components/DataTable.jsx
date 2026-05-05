@@ -7,6 +7,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown, Search, X, ChevronLeft, ChevronRight, 
 export default function DataTable({
   rows,
   columns,
+  allColumns,  // Optional: all columns including hidden ones (for filtering)
   searchPlaceholder = "Search...",
   searchableFields = [],
   emptyMessage = "No data",
@@ -33,7 +34,9 @@ export default function DataTable({
   // Reset to page 1 when search/filters/pageSize change
   useEffect(() => { setPage(1); }, [debouncedSearch, filters, pageSize]);
 
-  const filterableCols = columns.filter(c => c.filterable !== false);
+  // Use allColumns for filtering if provided, otherwise use columns
+  const columnsForFiltering = allColumns || columns;
+  const filterableCols = columnsForFiltering.filter(c => c.filterable !== false);
 
   // Filter pipeline
   const filtered = useMemo(() => {
@@ -47,7 +50,7 @@ export default function DataTable({
     }
     for (const [colKey, vals] of Object.entries(filters)) {
       if (!vals || vals.length === 0) continue;
-      const col = columns.find(c => c.key === colKey);
+      const col = columnsForFiltering.find(c => c.key === colKey);
       if (!col) continue;
       result = result.filter(r => {
         const v = col.filterValue ? col.filterValue(r) : (col.accessor ? col.accessor(r) : r[col.key]);
@@ -55,7 +58,7 @@ export default function DataTable({
       });
     }
     return result;
-  }, [rows, debouncedSearch, filters, columns, searchableFields]);
+  }, [rows, debouncedSearch, filters, columnsForFiltering, searchableFields]);
 
   // Sort pipeline
   const sorted = useMemo(() => {
