@@ -35,7 +35,7 @@ export default function ChatbotDock({ snapshot, currentUser, refreshSnapshot, on
     <div className="fixed top-[57px] right-0 bottom-0 w-[440px] bg-white border-l-2 border-slate-200 shadow-xl z-30 flex flex-col animate-slide-right">
       <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
         <div className="flex items-center gap-2">
-          <Sparkles size={20} />
+          <img src="/logo.png" alt="" className="w-5 h-5" />
           <div>
             <div className="font-bold text-base">Recruiter Copilot</div>
             <div className="text-[11px] text-blue-100">Full chat workspace</div>
@@ -53,11 +53,11 @@ export default function ChatbotDock({ snapshot, currentUser, refreshSnapshot, on
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-slate-50/60">
         {engine.messages.map(m => (
-          <MessageBubble
-            key={m.id}
-            message={m}
-            snapshot={snapshot}
-            engine={engine}
+          <MessageBubble 
+            key={m.id} 
+            message={m} 
+            snapshot={snapshot} 
+            engine={engine} 
             onJumpToInterviews={onJumpToInterviews}
             onJumpToCandidates={onJumpToCandidates}
           />

@@ -2,7 +2,7 @@
 // ChatbotMini.jsx - Centered modal chatbot (RippleHire replica page)
 // ============================================================
 import { useEffect, useRef } from "react";
-import { Sparkles, X, Send, RotateCcw, ArrowUpRight, Loader2 } from "lucide-react";
+import { X, Send, RotateCcw, ArrowUpRight, Loader2 } from "lucide-react";
 import { useChatEngine } from "./useChatEngine.js";
 import MessageBubble from "./MessageBubble.jsx";
 import { useToast } from "./Toast.jsx";
@@ -27,9 +27,9 @@ export default function ChatbotMini({ db, snapshot, currentUser, onClose, onOpen
     <>
       <div className="fixed inset-0 bg-slate-900/40 z-50 animate-fade-in" onClick={onClose} />
       <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[51] w-[480px] max-w-[92vw] h-[600px] max-h-[90vh] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden animate-pop-in">
-        {/* Header */}
+        {/* Header - LOGO REPLACED */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3 flex items-center gap-2">
-          <Sparkles size={20} />
+          <img src="/logo.png" alt="" className="w-5 h-5" />
           <div className="flex-1">
             <div className="font-bold text-sm">Recruiter Copilot</div>
             <div className="text-[11px] text-blue-100">Schedule interviews in one sentence</div>

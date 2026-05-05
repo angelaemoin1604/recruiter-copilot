@@ -11,7 +11,6 @@ export default function RecruiterCopilot({ snapshot, refreshSnapshot, currentUse
   const [activeTab, setActiveTab] = useState("dashboard");
   const [dockOpen, setDockOpen] = useState(false);
   const [prefilledMessage, setPrefilledMessage] = useState("");
-  // FIX #4: Add state for candidate highlighting
   const [highlightCandidates, setHighlightCandidates] = useState([]);
 
   // Cmd/Ctrl+K to toggle dock
@@ -31,7 +30,7 @@ export default function RecruiterCopilot({ snapshot, refreshSnapshot, currentUse
     setActiveTab("candidates");
     setHighlightCandidates(candidateIds);
     setDockOpen(false);
-
+    
     // Clear highlight after 3 seconds
     setTimeout(() => {
       setHighlightCandidates([]);
@@ -55,9 +54,7 @@ export default function RecruiterCopilot({ snapshot, refreshSnapshot, currentUse
                   <span className="text-xs">Back</span>
                 </button>
               )}
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                <Sparkles size={18} className="text-white" />
-              </div>
+              <img src="/logo.png" alt="RippleHire" className="w-9 h-9 rounded-lg" />
               <span className="text-xl font-black text-slate-900">Recruiter Copilot</span>
             </div>
 
@@ -73,10 +70,11 @@ export default function RecruiterCopilot({ snapshot, refreshSnapshot, currentUse
                   <button
                     key={t.id}
                     onClick={() => setActiveTab(t.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-bold transition ${activeTab === t.id
-                      ? "bg-blue-600 text-white shadow"
-                      : "text-slate-800 hover:bg-slate-100"
-                      }`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-bold transition ${
+                      activeTab === t.id
+                        ? "bg-blue-600 text-white shadow"
+                        : "text-slate-800 hover:bg-slate-100"
+                    }`}
                   >
                     <Icon size={14} />
                     {t.label}
@@ -91,7 +89,7 @@ export default function RecruiterCopilot({ snapshot, refreshSnapshot, currentUse
               onClick={() => setDockOpen(true)}
               className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-md text-sm font-bold shadow-md hover:shadow-lg transition"
             >
-              <Sparkles size={14} /> Recruiter Copilot
+              <img src="/logo.png" alt="" className="w-4 h-4" /> Recruiter Copilot
             </button>
             <div className="relative group">
               <button className="flex items-center gap-2 pl-2 pr-1.5 py-1 rounded-md hover:bg-slate-100">
@@ -129,10 +127,9 @@ export default function RecruiterCopilot({ snapshot, refreshSnapshot, currentUse
             }}
           />
         )}
-        {/* FIX #4: Pass highlightCandidates to CandidatesTab */}
         {activeTab === "candidates" && (
-          <CandidatesTab
-            snapshot={snapshot}
+          <CandidatesTab 
+            snapshot={snapshot} 
             highlightCandidates={highlightCandidates}
           />
         )}

@@ -2,7 +2,7 @@
 // Login.jsx - RippleHire-styled login screen
 // ============================================================
 import { useState } from "react";
-import { Sparkles, Eye, EyeOff, AlertCircle, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Lock, Mail } from "lucide-react";
 
 const VALID_EMAIL = "recruiter@sandbox.com";
 const VALID_PASSWORD = "Ripplehire123";
@@ -48,12 +48,10 @@ export default function Login({ onLogin }) {
       <div className="absolute top-1/2 left-1/2 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl animate-blob-3" />
 
       <div className={`relative w-full max-w-md ${shake ? "animate-shake" : ""}`}>
-        {/* Logo */}
+        {/* Logo - REPLACED WITH RIPPLEHIRE LOGO */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/50">
-              <Sparkles size={26} className="text-white" />
-            </div>
+            <img src="/logo.png" alt="RippleHire" className="w-12 h-12 rounded-xl shadow-lg" />
             <div className="text-left">
               <div className="text-3xl font-black text-white tracking-tight">RippleHire</div>
               <div className="text-xs text-blue-200 tracking-wide">Recruiter Workspace</div>

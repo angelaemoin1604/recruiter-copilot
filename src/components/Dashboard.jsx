@@ -197,7 +197,7 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
               <p className="text-blue-100 text-lg mb-5 max-w-xl">Schedule interviews in one sentence. The recruiter copilot built into RippleHire.</p>
               <div className="flex items-center gap-3">
                 <button onClick={onOpenDock} className="group inline-flex items-center gap-2 px-5 py-2.5 bg-white text-blue-700 rounded-lg font-bold shadow-lg hover:scale-105 transition">
-                  <Sparkles size={16} />
+                  <img src="/logo.png" alt="" className="w-4 h-4" />
                   Start scheduling
                   <ArrowRight size={16} className="group-hover:translate-x-1 transition" />
                 </button>
