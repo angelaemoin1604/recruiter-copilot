@@ -209,7 +209,7 @@ export function processMessage(text, db) {
   if (slots.validation_error && slots.validation_error.length > 0) {
     return {
       kind: "ask_missing",
-      content: `❌ Missing required information:\n\n${slots.validation_error.map(field => `• ${field}`).join('\n')}\n\nPlease provide all details to schedule the interview.`,
+      content: `I need more information to schedule this interview. Please provide:\n\n${slots.validation_error.map(field => `• ${field.charAt(0).toUpperCase() + field.slice(1)}`).join('\n')}\n\nExample: "Schedule Interview 1 for Anjali Sharma, Frontend Engineer, 10th May 2026, 2-3 PM, Video, with Vikram Singh, topic React & TypeScript"`,
       slots
     };
   }

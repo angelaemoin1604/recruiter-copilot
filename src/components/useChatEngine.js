@@ -195,7 +195,7 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
         added_by_self: false 
       });
       await refreshSnapshot();
-      addMsg({ role: "assistant", kind: "text", content: `✅ Confirmed timeslot added for ${emp.name} on ${slots.date} ${slots.time.start}–${slots.time.end}. You can now schedule!` });
+      addMsg({ role: "assistant", kind: "text", content: `✅ Confirmed timeslot added for ${emp.name} on ${formatDateDisplay(slots.date)}, ${slots.time.start}–${slots.time.end}. You can now schedule!` });
       if (toast?.success) toast.success(`Timeslot confirmed for ${emp.name}`);
     } catch (err) {
       console.error("addConfirmedSlot error:", err);
@@ -218,7 +218,7 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
         created_at: new Date().toISOString() 
       });
       await refreshSnapshot();
-      addMsg({ role: "assistant", kind: "text", content: `⏳ Pending request sent to ${emp.name} for ${slots.date} ${slots.time.start}–${slots.time.end}.` });
+      addMsg({ role: "assistant", kind: "text", content: `⏳ Pending request sent to ${emp.name} for ${formatDateDisplay(slots.date)}, ${slots.time.start}–${slots.time.end}.` });
       if (toast?.success) toast.success(`Pending request sent to ${emp.name}`);
     } catch (err) {
       console.error("raiseSlotRequest error:", err);

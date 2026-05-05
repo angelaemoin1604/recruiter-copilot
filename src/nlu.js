@@ -165,15 +165,15 @@ export function extractSlots(text, db) {
   const missing = [];
   if (!slots.candidate_name) missing.push("candidate name");
   if (!slots.job) missing.push("job title");
-  if (!slots.round_name) missing.push("interview round (e.g., Interview 1, Interview 2)");
-  if (!slots.interviewer_ref) missing.push("interviewer name");
-  if (!slots.topic) missing.push("interview topic");
-  if (!slots.mode) missing.push("interview mode (Video/Telephonic/In-person)");
+  if (!slots.round_name) missing.push("interview round (e.g., Interview 1, Interview 2, HR Stage)");
   if (!slots.date) missing.push("interview date");
   if (!slots.time) missing.push("interview time");
+  if (!slots.mode) missing.push("interview mode (Video/Telephonic/In-person)");
+  if (!slots.interviewer_ref) missing.push("interviewer name");
+  if (!slots.topic) missing.push("interview topic");
   
   if (missing.length > 0) {
-    slots.validation_errors = missing;
+    slots.validation_error = missing; // Changed to singular to match resolution.js
   }
   
   return slots;
