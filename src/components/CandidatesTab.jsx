@@ -1,17 +1,46 @@
 // CandidatesTab.jsx
 import { useState, useEffect, useRef } from "react";
 import DataTable from "./DataTable.jsx";
-import { ExternalLink, Eye, Download } from "lucide-react";
+import { ExternalLink, Eye, Download, Calendar } from "lucide-react";
 import JobDrawer from "./JobDrawer.jsx";
 import ResumePreview from "./ResumePreview.jsx";
+import CandidateAvailabilityPopup from "./CandidateAvailabilityPopup.jsx";
 import { downloadResumePDF } from "../pdf.js";
 import { useToast } from "./Toast.jsx";
 import { formatDate } from "../utils.js";
+import * as DB from "../supabase.js";
 
-export default function CandidatesTab({ snapshot, highlightCandidates = [] }) {
+export default function CandidatesTab({ snapshot, highlightCandidates = [], currentUser, refreshSnapshot }) {
   const [jobDrawer, setJobDrawer] = useState(null);
   const [previewFor, setPreviewFor] = useState(null);
+  const [availabilityPopup, setAvailabilityPopup] = useState(null);
   const toast = useToast();
+
+  const handleSendAvailability = async (slots) => {
+    try {
+      // Save slots to database
+      for (const slot of slots) {
+        await DB.add("candidate_availability", {
+          rh_id: availabilityPopup.rh_id,
+          slot_date: slot.date,
+          start_time: slot.start,
+          end_time: slot.end,
+          status: "pending",
+          requested_by: currentUser?.email || "recruiter@company.com"
+        });
+      }
+
+      // Send email to candidate
+      await DB.sendAvailabilityEmail(availabilityPopup, slots);
+
+      toast.success(`✅ Availability request sent to ${availabilityPopup.name}`);
+      setAvailabilityPopup(null);
+      if (refreshSnapshot) await refreshSnapshot();
+    } catch (error) {
+      console.error("Error sending availability:", error);
+      toast.error("❌ Failed to send availability request");
+    }
+  };
 
   const rows = snapshot.applications.map(a => {
     const cand = snapshot.candidates.find(c => c.rh_id === a.rh_id);
@@ -124,6 +153,24 @@ export default function CandidatesTab({ snapshot, highlightCandidates = [] }) {
           </div>
         );
       }
+    },
+    {
+      key: "availability",
+      label: "Actions",
+      sortable: false,
+      filterable: false,
+      render: r => (
+        <div className={r.shouldHighlight ? 'animate-highlight-pulse' : ''}>
+          <button
+            onClick={() => setAvailabilityPopup(r.candidate)}
+            className="px-3 py-1.5 bg-indigo-50 border border-indigo-300 text-indigo-800 hover:bg-indigo-100 rounded flex items-center gap-1.5 text-xs font-semibold transition"
+            title="Request Availability"
+          >
+            <Calendar size={14} />
+            Request Availability
+          </button>
+        </div>
+      )
     }
   ];
 
@@ -165,6 +212,13 @@ export default function CandidatesTab({ snapshot, highlightCandidates = [] }) {
       />
       {jobDrawer && <JobDrawer job={jobDrawer} snapshot={snapshot} onClose={() => setJobDrawer(null)} />}
       {previewFor && <ResumePreview {...previewFor} onClose={() => setPreviewFor(null)} />}
+      {availabilityPopup && (
+        <CandidateAvailabilityPopup
+          candidate={availabilityPopup}
+          onClose={() => setAvailabilityPopup(null)}
+          onSend={handleSendAvailability}
+        />
+      )}
     </div>
   );
 }

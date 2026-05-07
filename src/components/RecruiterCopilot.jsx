@@ -131,6 +131,8 @@ export default function RecruiterCopilot({ snapshot, refreshSnapshot, currentUse
           <CandidatesTab 
             snapshot={snapshot} 
             highlightCandidates={highlightCandidates}
+            currentUser={currentUser}
+            refreshSnapshot={refreshSnapshot}
           />
         )}
         {activeTab === "employees" && <EmployeesTab snapshot={snapshot} refreshSnapshot={refreshSnapshot} currentUser={currentUser} />}

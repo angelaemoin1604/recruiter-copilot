@@ -24,6 +24,7 @@ const TABLE_COLUMNS = {
   interview_round: ['id','job_id','round_name','sequence_no','default_topic'],
   interviewer_availability: ['id','employee_id','slot_date','start_time','end_time','status','added_by','added_by_self'],
   time_slot_request: ['id','employee_id','requested_by','slot_date','start_time','end_time','repeat_pattern','status','created_at'],
+  candidate_availability: ['id','rh_id','slot_date','start_time','end_time','status','requested_by','created_at'],
 };
 
 // Strip any fields that don't belong to this table
@@ -107,7 +108,7 @@ export async function snapshot() {
     'interviews', 'interview_history',
     'assessment_ability_skills', 'assessment_ability_rounds', 'assessment_ability_grades',
     'job_required_skill', 'interview_round',
-    'interviewer_availability', 'time_slot_request'
+    'interviewer_availability', 'time_slot_request', 'candidate_availability'
   ];
 
   const result = {};
@@ -116,6 +117,45 @@ export async function snapshot() {
   }
   result.meta = [];
   return result;
+}
+
+// Send availability request email to candidate
+export async function sendAvailabilityEmail(candidate, slots) {
+  try {
+    // Format slots for email
+    const slotList = slots.map(s => {
+      const date = new Date(s.date + 'T00:00:00').toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        month: 'long', 
+        day: 'numeric',
+        year: 'numeric'
+      });
+      return `• ${date} at ${s.display}`;
+    }).join('\n');
+
+    const emailBody = {
+      to: candidate.email,
+      subject: 'Interview Availability Request',
+      html: `
+        <h2>Hello ${candidate.name},</h2>
+        <p>We would like to schedule an interview with you. Please confirm your availability for any of the following time slots:</p>
+        <pre>${slotList}</pre>
+        <p>Please reply to this email with your preferred slot(s).</p>
+        <p>Best regards,<br/>Recruitment Team</p>
+      `
+    };
+
+    // Call Supabase Edge Function to send email
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: emailBody
+    });
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw error;
+  }
 }
 
 export async function initDB() {
