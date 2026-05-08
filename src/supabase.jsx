@@ -6,14 +6,22 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// EmailJS Configuration
-const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
-const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+// EmailJS Configuration - HARDCODED FOR RELIABILITY
+const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || 'service_x3k41yt';
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'template_wkd39cc';
+const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'sTgpTb5NDksjA3krU';
 
-// Initialize EmailJS
-if (EMAILJS_PUBLIC_KEY) {
+console.log('🔧 EmailJS Configuration:');
+console.log('  Service ID:', EMAILJS_SERVICE_ID);
+console.log('  Template ID:', EMAILJS_TEMPLATE_ID);
+console.log('  Public Key:', EMAILJS_PUBLIC_KEY ? '✅ Present' : '❌ Missing');
+
+// Initialize EmailJS immediately
+try {
   emailjs.init(EMAILJS_PUBLIC_KEY);
+  console.log('✅ EmailJS initialized successfully');
+} catch (error) {
+  console.error('❌ Failed to initialize EmailJS:', error);
 }
 
 const TABLE_COLUMNS = {
@@ -119,19 +127,40 @@ export async function snapshot() {
   return result;
 }
 
-// Send availability request email using EmailJS
+// BULLETPROOF: Send availability request email using EmailJS
 export async function sendAvailabilityEmail(candidate, slots) {
   try {
-    console.log('📧 Sending email via EmailJS to:', candidate.email);
+    console.log('=' * 50);
+    console.log('📧 SENDING EMAIL VIA EMAILJS');
+    console.log('=' * 50);
+    console.log('Candidate:', candidate);
+    console.log('Slots:', slots);
+
+    // Validate candidate
+    if (!candidate) {
+      throw new Error('❌ Candidate object is null or undefined');
+    }
 
     if (!candidate.email) {
-      throw new Error('Candidate does not have an email address');
+      throw new Error(`❌ Candidate "${candidate.name}" does not have an email address`);
     }
 
-    // Validate EmailJS configuration
-    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
-      throw new Error('EmailJS is not configured. Please check your .env file.');
+    if (!candidate.name) {
+      throw new Error('❌ Candidate does not have a name');
     }
+
+    if (!slots || slots.length === 0) {
+      throw new Error('❌ No slots provided');
+    }
+
+    console.log('✅ Validation passed');
+
+    // Verify EmailJS is initialized
+    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+      throw new Error('❌ EmailJS configuration is incomplete. Check .env file.');
+    }
+
+    console.log('✅ EmailJS configured');
 
     // Format slots for email
     const slotList = slots.map(s => {
@@ -144,6 +173,8 @@ export async function sendAvailabilityEmail(candidate, slots) {
       return `• ${date} at ${s.display}`;
     }).join('\n');
 
+    console.log('📋 Formatted slots:', slotList);
+
     // Prepare template parameters
     const templateParams = {
       to_email: candidate.email,
@@ -152,20 +183,29 @@ export async function sendAvailabilityEmail(candidate, slots) {
       from_name: 'RippleHire Recruitment Team'
     };
 
-    console.log('📤 Sending with EmailJS...', templateParams);
+    console.log('📤 Template parameters:', templateParams);
 
     // Send via EmailJS
+    console.log('🔄 Calling emailjs.send()...');
     const response = await emailjs.send(
       EMAILJS_SERVICE_ID,
       EMAILJS_TEMPLATE_ID,
       templateParams
     );
 
-    console.log('✅ Email sent successfully!', response);
+    console.log('✅ EMAIL SENT SUCCESSFULLY!');
+    console.log('Response:', response);
+    console.log('=' * 50);
+
     return { success: true, data: response };
 
   } catch (error) {
-    console.error('❌ EmailJS error:', error);
+    console.error('=' * 50);
+    console.error('❌ ERROR SENDING EMAIL:');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Full error:', error);
+    console.error('=' * 50);
     throw error;
   }
 }
