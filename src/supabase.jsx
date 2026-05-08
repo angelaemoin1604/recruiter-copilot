@@ -1,15 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
+import emailjs from '@emailjs/browser';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ============================================================
-// EXACT column definitions for every table.
-// This is the SINGLE source of truth — any field NOT listed here
-// gets stripped before it reaches Supabase, preventing "column not found" errors.
-// ============================================================
+// EmailJS Configuration
+const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+// Initialize EmailJS
+if (EMAILJS_PUBLIC_KEY) {
+  emailjs.init(EMAILJS_PUBLIC_KEY);
+}
+
 const TABLE_COLUMNS = {
   employees: ['employee_id','name','email','phone','department','location','grade','level','hired_job_title','is_certified_panelist','is_active'],
   candidates: ['rh_id','name','email','phone','location','current_title'],
@@ -27,10 +33,9 @@ const TABLE_COLUMNS = {
   candidate_availability: ['id','rh_id','slot_date','start_time','end_time','status','requested_by','created_at'],
 };
 
-// Strip any fields that don't belong to this table
 function sanitize(tableName, record) {
   const allowed = TABLE_COLUMNS[tableName];
-  if (!allowed) return record; // unknown table — pass through as-is
+  if (!allowed) return record;
   const clean = {};
   for (const key of allowed) {
     if (key in record) clean[key] = record[key];
@@ -38,7 +43,6 @@ function sanitize(tableName, record) {
   return clean;
 }
 
-// Get all rows from a table
 export async function getAll(tableName) {
   const { data, error } = await supabase.from(tableName).select('*');
   if (error) {
@@ -48,7 +52,6 @@ export async function getAll(tableName) {
   return data || [];
 }
 
-// Add a new row to a table
 export async function add(tableName, record) {
   const clean = sanitize(tableName, record);
   const { data, error } = await supabase.from(tableName).insert(clean).select();
@@ -59,7 +62,6 @@ export async function add(tableName, record) {
   return data?.[0]?.id ?? data?.[0];
 }
 
-// Update an existing row
 export async function put(tableName, record) {
   let idField = 'id';
   if (tableName === 'employees') idField = 'employee_id';
@@ -82,7 +84,6 @@ export async function put(tableName, record) {
   return data?.[0];
 }
 
-// Delete a row
 export async function del(tableName, id) {
   let idField = 'id';
   if (tableName === 'employees') idField = 'employee_id';
@@ -101,7 +102,6 @@ export async function del(tableName, id) {
   return true;
 }
 
-// Get all data from all tables (snapshot)
 export async function snapshot() {
   const tables = [
     'employees', 'candidates', 'jobs', 'applications',
@@ -119,15 +119,18 @@ export async function snapshot() {
   return result;
 }
 
-// Send availability request email to candidate
+// Send availability request email using EmailJS
 export async function sendAvailabilityEmail(candidate, slots) {
   try {
-    console.log('📧 Sending availability email to:', candidate.email);
-    console.log('📅 Slots:', slots);
+    console.log('📧 Sending email via EmailJS to:', candidate.email);
 
-    // Validate candidate has email
     if (!candidate.email) {
       throw new Error('Candidate does not have an email address');
+    }
+
+    // Validate EmailJS configuration
+    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+      throw new Error('EmailJS is not configured. Please check your .env file.');
     }
 
     // Format slots for email
@@ -141,50 +144,28 @@ export async function sendAvailabilityEmail(candidate, slots) {
       return `• ${date} at ${s.display}`;
     }).join('\n');
 
-    const emailBody = {
-      to: candidate.email,
-      subject: 'Interview Availability Request from RippleHire',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2563eb;">Interview Availability Request</h2>
-          <p>Hello ${candidate.name},</p>
-          <p>We would like to schedule an interview with you. Please confirm your availability for any of the following time slots:</p>
-          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <pre style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.8; margin: 0;">${slotList}</pre>
-          </div>
-          <p>Please reply to this email with your preferred slot(s).</p>
-          <p style="margin-top: 30px;">Best regards,<br/>Recruitment Team<br/>RippleHire</p>
-        </div>
-      `
+    // Prepare template parameters
+    const templateParams = {
+      to_email: candidate.email,
+      to_name: candidate.name,
+      slot_list: slotList,
+      from_name: 'RippleHire Recruitment Team'
     };
 
-    console.log('📤 Calling Edge Function with body:', {
-      to: emailBody.to,
-      subject: emailBody.subject,
-      htmlLength: emailBody.html.length
-    });
+    console.log('📤 Sending with EmailJS...', templateParams);
 
-    // Call Supabase Edge Function
-    const { data, error } = await supabase.functions.invoke('send-email', {
-      body: emailBody
-    });
+    // Send via EmailJS
+    const response = await emailjs.send(
+      EMAILJS_SERVICE_ID,
+      EMAILJS_TEMPLATE_ID,
+      templateParams
+    );
 
-    console.log('📨 Edge Function response:', { data, error });
+    console.log('✅ Email sent successfully!', response);
+    return { success: true, data: response };
 
-    if (error) {
-      console.error('❌ Edge Function error:', error);
-      throw new Error(`Failed to send email: ${error.message}`);
-    }
-
-    if (!data || !data.success) {
-      console.error('❌ Email sending failed:', data);
-      throw new Error('Email sending failed - no success confirmation');
-    }
-
-    console.log('✅ Email sent successfully! ID:', data.data?.id);
-    return data;
   } catch (error) {
-    console.error('❌ Error in sendAvailabilityEmail:', error);
+    console.error('❌ EmailJS error:', error);
     throw error;
   }
 }
