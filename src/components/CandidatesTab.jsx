@@ -8,7 +8,7 @@ import CandidateAvailabilityPopup from "./CandidateAvailabilityPopup.jsx";
 import { downloadResumePDF } from "../pdf.js";
 import { useToast } from "./Toast.jsx";
 import { formatDate } from "../utils.js";
-import * as DB from "../supabase.js";
+import * as DB from "../supabase.jsx";
 
 export default function CandidatesTab({ snapshot, highlightCandidates = [], currentUser, refreshSnapshot }) {
   const [jobDrawer, setJobDrawer] = useState(null);

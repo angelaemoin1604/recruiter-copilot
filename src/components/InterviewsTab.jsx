@@ -5,7 +5,7 @@ import InterviewDetailPopup from "./InterviewDetailPopup.jsx";
 import RescheduleForm from "./RescheduleForm.jsx";
 import CancelInterviewForm from "./CancelInterviewForm.jsx";
 import { Video, Phone, MapPin, X, Edit2, Trash2 } from "lucide-react";
-import * as DB from "../supabase.js";
+import * as DB from "../supabase.jsx";
 import { useToast } from "./Toast.jsx";
 import { formatDate, formatTime } from "../utils.js";
 

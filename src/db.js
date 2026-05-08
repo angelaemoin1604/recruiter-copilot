@@ -7,4 +7,4 @@ export {
   add, 
   put, 
   del 
-} from './supabase.js';
+} from './supabase.jsx';

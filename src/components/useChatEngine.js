@@ -1,7 +1,7 @@
 // useChatEngine.js
 import { useState, useCallback } from "react";
 import { processMessage, resolveInterviewer, checkChosenInterviewer } from "../resolution.js";
-import * as DB from "../supabase.js";
+import * as DB from "../supabase.jsx";
 
 // ONLY 100% VERIFIED candidates+jobs from the database
 // All combinations verified from Candidates tab screenshot
