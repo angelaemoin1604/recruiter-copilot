@@ -1,4 +1,4 @@
-// MessageBubble.jsx
+// MessageBubble.jsx - FIXED VERSION - Removed suggestion autofill buttons
 import { Sparkles, ChevronRight, CheckCircle2, ArrowRight, Plus, Clock } from "lucide-react";
 
 function getOrdinalSuffix(day) {
@@ -41,7 +41,7 @@ function BotBubble({ content, accent }) {
   );
 }
 
-export default function MessageBubble({ message, snapshot, engine, onJumpToInterviews, onSuggestionClick, suggestionText = null }) {
+export default function MessageBubble({ message, snapshot, engine, onJumpToInterviews, onJumpToCandidates }) {
   if (message.role === "user") {
     return (
       <div className="flex justify-end animate-slide-up">
@@ -54,45 +54,24 @@ export default function MessageBubble({ message, snapshot, engine, onJumpToInter
     <div className="flex animate-slide-up">
       <div className="flex-1 max-w-[95%] space-y-2">
 
-        {message.kind === "text" && (
-          <>
-            <BotBubble content={message.content} />
-            {suggestionText && onSuggestionClick && (
-              <button
-                onClick={() => onSuggestionClick(suggestionText)}
-                className="w-full text-left px-3 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 hover:border-blue-400 rounded-lg transition group flex items-center gap-2"
-              >
-                <Sparkles size={14} className="text-blue-600 flex-shrink-0" />
-                <span className="text-xs font-medium text-slate-700 flex-1">Click to auto-fill: <span className="text-blue-700 font-semibold">{suggestionText}</span></span>
-                <ArrowRight size={14} className="text-blue-600 group-hover:translate-x-1 transition" />
-              </button>
-            )}
-          </>
-        )}
+        {/* FIXED: Removed suggestionText from text messages */}
+        {message.kind === "text" && <BotBubble content={message.content} />}
         
+        {/* FIXED: Removed suggestionText from success messages */}
         {message.kind === "success" && (
-          <>
-            <div className="bg-emerald-50 border-2 border-emerald-400 rounded-lg p-3 shadow">
-              <div className="flex items-start gap-2 mb-2">
-                <CheckCircle2 size={20} className="text-emerald-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-bold text-sm text-emerald-900">Interview Scheduled! ✅</div>
-                  <div className="text-xs text-emerald-800 mt-1 whitespace-pre-wrap">{message.content}</div>
-                </div>
+          <div className="bg-emerald-50 border-2 border-emerald-400 rounded-lg p-3 shadow">
+            <div className="flex items-start gap-2 mb-2">
+              <CheckCircle2 size={20} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold text-sm text-emerald-900">Interview Scheduled! ✅</div>
+                <div className="text-xs text-emerald-800 mt-1 whitespace-pre-wrap">{message.content}</div>
               </div>
-              {onJumpToInterviews && <button onClick={onJumpToInterviews} className="w-full mt-2 text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline">View in Interviews tab →</button>}
             </div>
-            {suggestionText && onSuggestionClick && (
-              <button
-                onClick={() => onSuggestionClick(suggestionText)}
-                className="w-full text-left px-3 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 hover:border-blue-400 rounded-lg transition group flex items-center gap-2"
-              >
-                <Sparkles size={14} className="text-blue-600 flex-shrink-0" />
-                <span className="text-xs font-medium text-slate-700 flex-1">Click to auto-fill: <span className="text-blue-700 font-semibold">{suggestionText}</span></span>
-                <ArrowRight size={14} className="text-blue-600 group-hover:translate-x-1 transition" />
-              </button>
+            {onJumpToInterviews && <button onClick={onJumpToInterviews} className="w-full mt-2 text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline">View in Interviews tab →</button>}
+            {onJumpToCandidates && message.highlightCandidates && (
+              <button onClick={() => onJumpToCandidates(message.highlightCandidates)} className="w-full mt-2 text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline">View in Candidates tab →</button>
             )}
-          </>
+          </div>
         )}
         
         {message.kind === "ask_missing" && <BotBubble content={message.content} accent="amber" />}
@@ -122,19 +101,19 @@ export default function MessageBubble({ message, snapshot, engine, onJumpToInter
 
         {message.kind === "wrong_round" && (
           <div className="space-y-2">
-            {(() => { const cand = snapshot.candidates.find(c => c.rh_id === message.options?.[0]?.rh_id); return <BotBubble content={`⚠️ ${cand?.name || "Candidate"} is currently in **${message.options?.[0]?.current_round}**, not **${message.requested_round}**. Schedule anyway?`} accent="amber" />; })()}
+            <BotBubble content={`${message.slots?.candidate_name} is currently at **${message.options[0]?.application?.current_round}** for ${message.options[0]?.job?.title}, but you asked to schedule **${message.requested_round}**.\n\nDo you want to schedule it anyway?`} accent="amber" />
             <div className="flex gap-2">
-              <button onClick={() => engine.acceptWrongRound(message.options[0], message.slots)} className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-md">Yes, schedule anyway</button>
-              <button onClick={engine.declineWrongRound} className="flex-1 px-3 py-2 border-2 border-slate-300 hover:bg-slate-50 text-slate-800 text-sm font-semibold rounded-md">No, cancel</button>
+              <button onClick={() => engine.acceptWrongRound(message.options[0].application, message.slots)} className="flex-1 py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-lg">Yes, schedule it</button>
+              <button onClick={engine.declineWrongRound} className="flex-1 py-2 px-3 border-2 border-slate-300 hover:bg-slate-50 text-slate-800 text-sm font-semibold rounded-lg">No, cancel</button>
             </div>
           </div>
         )}
 
         {message.kind === "not_qualified" && (
           <div className="space-y-2">
-            <BotBubble content={`${message.named?.name} isn't certified to assess **${message.round}**. Try one of these instead:`} accent="red" />
+            <BotBubble content={`${message.named?.name} is not qualified to conduct ${message.round}. Here are certified alternatives:`} accent="amber" />
             {(message.alternatives || []).map((alt, i) => (
-              <button key={i} onClick={() => engine.selectAlternative(alt.emp, message.slots, message.candidate)} className="w-full text-left p-2.5 bg-white border-2 border-slate-300 hover:border-blue-500 hover:bg-blue-50 rounded-lg transition">
+              <button key={i} onClick={() => engine.selectAlternative(alt.emp, message.slots, message.candidate)} className="w-full p-3 bg-white border-2 border-slate-300 hover:border-blue-500 hover:bg-blue-50 rounded-lg transition">
                 <div className="flex items-center justify-between"><div><div className="font-bold text-sm text-slate-900">{alt.emp.name}</div><div className="mono text-[10px] text-slate-700">{alt.emp.employee_id} · {alt.emp.department}</div></div><Pill color="green">Score {alt.score}</Pill></div>
               </button>
             ))}
