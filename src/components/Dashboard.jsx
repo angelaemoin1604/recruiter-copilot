@@ -106,19 +106,24 @@ function Sparkline({ values = [], color = "#3b82f6" }) {
 // Funnel segment with hover animation
 function FunnelStage({ label, count, total, color, onClick }) {
   const pct = total > 0 ? (count / total) * 100 : 0;
-  const targetHeight = Math.max(pct, 8); // Minimum 8% for visibility
+  
+  // FIX: If count is 0, don't show any bar at all
+  const shouldShowBar = count > 0;
+  const targetHeight = shouldShowBar ? Math.max(pct, 8) : 0; // Minimum 8% for visibility when > 0
   
   return (
     <button onClick={onClick} className="flex-1 group min-w-0 funnel-card">
       <div className="text-[10px] uppercase tracking-wider text-slate-700 font-bold mb-1 truncate">{label}</div>
       <div className="relative h-16 rounded-md overflow-hidden border border-slate-300 bg-slate-50 group-hover:shadow-lg group-hover:border-blue-300 transition">
-        {/* Animated bar that grows from bottom on hover */}
-        <div 
-          className={`funnel-bar ${color}`}
-          style={{ 
-            '--target-height': `${targetHeight}%`
-          }}
-        />
+        {/* Animated bar that grows from bottom on hover - ONLY if count > 0 */}
+        {shouldShowBar && (
+          <div 
+            className={`funnel-bar ${color}`}
+            style={{ 
+              '--target-height': `${targetHeight}%`
+            }}
+          />
+        )}
         {/* Content stays in center */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
           <div className="text-2xl font-black text-slate-900"><CountUp to={count} /></div>
@@ -242,6 +247,9 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
           bottom: 0;
           left: 0;
           right: 0;
+          margin: 0;
+          padding: 0;
+          border-radius: 0 0 calc(0.375rem - 1px) calc(0.375rem - 1px); /* Match parent's bottom border radius */
         }
         
         /* Trigger animation on funnel card hover */
