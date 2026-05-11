@@ -18,9 +18,11 @@ export default function EmployeesTab({ snapshot, refreshSnapshot, currentUser })
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white">
             {r.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
           </div>
-          <div>
+          <div className="flex items-center gap-1.5">
             <div className="font-bold text-slate-900">{r.name}</div>
-            <div className="mono text-[10px] text-slate-700">{r.employee_id}</div>
+            {r.is_certified_panelist && (
+              <CheckCircle2 size={16} className="text-emerald-600" title="Certified Panelist" />
+            )}
           </div>
         </div>
       )
@@ -37,28 +39,8 @@ export default function EmployeesTab({ snapshot, refreshSnapshot, currentUser })
       filterValue: r => r.department
     },
     {
-      key: "grade",
-      label: "Grade",
-      render: r => (
-        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 border border-indigo-300 text-xs font-semibold rounded">
-          {r.grade}
-        </span>
-      ),
-      filterValue: r => r.grade
-    },
-    {
-      key: "certified",
-      label: "Certified Panelist",
-      render: r => r.is_certified_panelist ? (
-        <CheckCircle2 size={16} className="text-emerald-600" />
-      ) : (
-        <XCircle size={16} className="text-slate-400" />
-      ),
-      filterValue: r => r.is_certified_panelist ? "Yes" : "No"
-    },
-    {
       key: "actions",
-      label: "Employee & timeslot details",
+      label: "Availability",
       sortable: false,
       filterable: false,
       render: r => (
@@ -72,11 +54,29 @@ export default function EmployeesTab({ snapshot, refreshSnapshot, currentUser })
     }
   ];
 
+  // Hidden columns for filtering only (not displayed in table)
+  const allColumns = [
+    ...columns,
+    {
+      key: "grade",
+      label: "Grade",
+      filterValue: r => r.grade,
+      sortable: false
+    },
+    {
+      key: "certified",
+      label: "Certified Panelist",
+      filterValue: r => r.is_certified_panelist ? "Yes" : "No",
+      sortable: false
+    }
+  ];
+
   return (
     <div>
       <DataTable
         rows={rows}
         columns={columns}
+        allColumns={allColumns}
         searchPlaceholder="Search employees by name, email, ID..."
         searchableFields={[r => r.name, r => r.email, r => r.employee_id]}
         emptyMessage="No employees found"
