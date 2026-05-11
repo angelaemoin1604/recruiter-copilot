@@ -264,33 +264,51 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                       <button
                         key={`${day.dateStr}-${i}`}
                         onClick={() => {
+                          console.log('=== CLICK ===');
+                          console.log('Date clicked:', day.dateStr);
+                          console.log('isDragging BEFORE:', isDragging);
+                          console.log('dragStart:', dragStart);
+                          console.log('selectedDates BEFORE:', selectedDates);
+                          
                           if (!isDisabled) {
                             if (!isDragging) {
                               // First click - start selection
+                              console.log('-> FIRST CLICK - Starting selection');
                               setIsDragging(true);
                               setDragStart(day.dateStr);
                               setSelectedDates([day.dateStr]);
                             } else {
                               // Second click - finalize selection
+                              console.log('-> SECOND CLICK - Finalizing selection');
+                              
                               // Calculate final range from dragStart to current clicked date
                               const allDates = calendarDays
                                 .filter(d => !d.isPast && d.isCurrentMonth)
                                 .map(d => d.dateStr);
                               
+                              console.log('All available dates:', allDates);
+                              
                               const startIdx = allDates.indexOf(dragStart);
                               const endIdx = allDates.indexOf(day.dateStr);
+                              
+                              console.log('startIdx:', startIdx, 'endIdx:', endIdx);
                               
                               if (startIdx !== -1 && endIdx !== -1) {
                                 const minIdx = Math.min(startIdx, endIdx);
                                 const maxIdx = Math.max(startIdx, endIdx);
                                 const rangeSelected = allDates.slice(minIdx, maxIdx + 1);
+                                console.log('Range to select:', rangeSelected);
                                 setSelectedDates(rangeSelected);
+                              } else {
+                                console.log('ERROR: Could not find start or end index!');
                               }
                               
                               setIsDragging(false);
                               setDragStart(null);
+                              console.log('-> Drag mode ended');
                             }
                           }
+                          console.log('=== END CLICK ===');
                         }}
                         onMouseEnter={() => {
                           if (isDragging && !isDisabled && dragStart) {
