@@ -1,11 +1,38 @@
 // CandidateAvailabilityPopup.jsx - WITH START/END TIME DROPDOWNS
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, ChevronLeft, ChevronRight, Calendar, Clock, Send, Plus } from "lucide-react";
 
 // Time Range Selector Component with Start/End dropdowns
-function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange }) {
+function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange, selectedDates }) {
   const [startTime, setStartTime] = useState("10:00");
   const [endTime, setEndTime] = useState("19:00");
+
+  // Auto-add default slot for all selected dates when dates change
+  useEffect(() => {
+    if (selectedDates.length > 0) {
+      const startHour = parseInt(startTime.split(':')[0]);
+      const endHour = parseInt(endTime.split(':')[0]);
+      
+      const startDisplay = startHour < 12 ? `${startHour}:00 AM` : 
+                          startHour === 12 ? `12:00 PM` : 
+                          `${startHour - 12}:00 PM`;
+      const endDisplay = endHour < 12 ? `${endHour}:00 AM` : 
+                        endHour === 12 ? `12:00 PM` : 
+                        `${endHour - 12}:00 PM`;
+      
+      const display = `${startDisplay} - ${endDisplay}`;
+      
+      // Add/update slots for all selected dates
+      const newSlots = selectedDates.map(dateStr => ({
+        date: dateStr,
+        start: startTime,
+        end: endTime,
+        display
+      }));
+      
+      onSlotsChange(newSlots);
+    }
+  }, [selectedDates, startTime, endTime]);
 
   // Generate time options from 7 AM to 8 PM
   const generateTimeOptions = () => {
@@ -29,75 +56,22 @@ function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange }) {
     return timeOptions.filter(opt => opt.hour > startHour && opt.hour <= 20);
   };
 
-  const addSlot = () => {
-    if (!startTime || !endTime) {
-      alert("Please select both start and end times");
-      return;
-    }
-
-    const startHour = parseInt(startTime.split(':')[0]);
-    const endHour = parseInt(endTime.split(':')[0]);
-
-    if (startHour >= endHour) {
-      alert("End time must be after start time");
-      return;
-    }
-
-    // Format display
-    const startDisplay = startHour < 12 ? `${startHour}:00 AM` : 
-                        startHour === 12 ? `12:00 PM` : 
-                        `${startHour - 12}:00 PM`;
-    const endDisplay = endHour < 12 ? `${endHour}:00 AM` : 
-                      endHour === 12 ? `12:00 PM` : 
-                      `${endHour - 12}:00 PM`;
-    
-    const display = `${startDisplay} - ${endDisplay}`;
-    
-    // Check if slot already exists for this date
-    const exists = selectedSlots.some(s => 
-      s.date === selectedDate && s.start === startTime && s.end === endTime
-    );
-    
-    if (exists) {
-      alert("This exact time slot is already selected");
-      return;
-    }
-
-    const newSlot = {
-      date: selectedDate,
-      start: startTime,
-      end: endTime,
-      display
-    };
-
-    onSlotsChange([...selectedSlots, newSlot]);
-  };
-
-  const removeSlot = (slotToRemove) => {
-    onSlotsChange(selectedSlots.filter(s => 
-      !(s.date === slotToRemove.date && s.start === slotToRemove.start && s.end === slotToRemove.end)
-    ));
-  };
-
-  const slotsForDate = selectedSlots.filter(s => s.date === selectedDate);
-
   return (
     <div className="space-y-4">
+      {/* Note about time slot */}
+      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <p className="text-xs text-amber-900 font-medium">
+          <strong>Note:</strong> Select your preferred start and end times. These times will apply to all selected dates.
+        </p>
+      </div>
+
       {/* Start and End Time Dropdowns */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-2">START TIME</label>
           <select
             value={startTime}
-            onChange={(e) => {
-              setStartTime(e.target.value);
-              // Reset end time if it's now before the new start time
-              const newStartHour = parseInt(e.target.value.split(':')[0]);
-              const currentEndHour = parseInt(endTime.split(':')[0]);
-              if (currentEndHour <= newStartHour) {
-                setEndTime("");
-              }
-            }}
+            onChange={(e) => setStartTime(e.target.value)}
             className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
           >
             {timeOptions.map(opt => (
@@ -119,35 +93,6 @@ function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange }) {
           </select>
         </div>
       </div>
-
-      <button
-        onClick={addSlot}
-        disabled={!startTime || !endTime}
-        className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-      >
-        <Plus size={18} />
-        Add Time Slot
-      </button>
-
-      {/* Display selected slots for this date */}
-      {slotsForDate.length > 0 && (
-        <div className="mt-4 border-t-2 border-slate-200 pt-4">
-          <div className="text-xs font-bold text-slate-700 mb-2">SELECTED SLOTS FOR THIS DATE ({slotsForDate.length})</div>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {slotsForDate.map((slot, idx) => (
-              <div key={idx} className="flex items-center justify-between bg-blue-50 border-2 border-blue-200 rounded-lg px-3 py-2">
-                <span className="text-sm font-medium text-blue-900">{slot.display}</span>
-                <button
-                  onClick={() => removeSlot(slot)}
-                  className="text-blue-600 hover:text-blue-800"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -155,7 +100,9 @@ function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange }) {
 export default function CandidateAvailabilityPopup({ candidate, onClose, onSend }) {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [selectedSlots, setSelectedSlots] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDates, setSelectedDates] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState(null);
 
   // Proper calendar day generation
   const generateCalendarDays = () => {
@@ -232,6 +179,17 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
     return selectedSlots.some(s => s.date === dateStr);
   };
 
+  // Global mouseup to stop dragging
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      setIsDragging(false);
+      setDragStart(null);
+    };
+    
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
+
   const handleSend = () => {
     if (selectedSlots.length === 0) {
       alert("Please select at least one time slot");
@@ -286,20 +244,43 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                   ))}
                 </div>
 
-                {/* Calendar days - ENHANCED VISIBILITY FOR SELECTED DATE */}
+                {/* Calendar days - MULTI-SELECT WITH DRAG */}
                 <div className="grid grid-cols-7 gap-2">
                   {calendarDays.map((day, i) => {
                     const hasSlots = hasSlotOnDate(day.dateStr);
-                    const isSelected = selectedDate === day.dateStr;
+                    const isSelected = selectedDates.includes(day.dateStr);
                     const isDisabled = day.isPast || !day.isCurrentMonth;
                     
                     return (
                       <button
                         key={`${day.dateStr}-${i}`}
-                        onClick={() => !isDisabled && setSelectedDate(day.dateStr)}
+                        onMouseDown={() => {
+                          if (!isDisabled) {
+                            setIsDragging(true);
+                            setDragStart(day.dateStr);
+                            // Toggle single date
+                            if (isSelected) {
+                              setSelectedDates(selectedDates.filter(d => d !== day.dateStr));
+                            } else {
+                              setSelectedDates([...selectedDates, day.dateStr]);
+                            }
+                          }
+                        }}
+                        onMouseEnter={() => {
+                          if (isDragging && !isDisabled && dragStart) {
+                            // Add date to selection while dragging
+                            if (!selectedDates.includes(day.dateStr)) {
+                              setSelectedDates([...selectedDates, day.dateStr]);
+                            }
+                          }
+                        }}
+                        onMouseUp={() => {
+                          setIsDragging(false);
+                          setDragStart(null);
+                        }}
                         disabled={isDisabled}
                         className={`
-                          h-10 w-full rounded-lg transition-all flex items-center justify-center
+                          h-10 w-full rounded-lg transition-all flex items-center justify-center select-none
                           ${!day.isCurrentMonth ? 'text-slate-300 cursor-not-allowed bg-slate-50' : ''}
                           ${day.isPast && day.isCurrentMonth ? 'text-slate-400 cursor-not-allowed bg-slate-100' : ''}
                           ${day.isToday && !isSelected ? 'ring-2 ring-orange-400' : ''}
@@ -326,11 +307,11 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                   })}
                 </div>
 
-                {/* Updated Legend with better colors */}
+                {/* Updated Legend */}
                 <div className="mt-4 text-xs text-slate-600 space-y-2">
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-600 to-indigo-600 shadow-md ring-2 ring-blue-300"></div>
-                    <span className="font-semibold">Currently viewing (actively selected)</span>
+                    <span className="font-semibold">Selected dates</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded bg-emerald-100 border-2 border-emerald-400"></div>
@@ -340,6 +321,9 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                     <div className="w-5 h-5 rounded border-2 border-orange-400"></div>
                     <span>Today's date</span>
                   </div>
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                    <span className="font-semibold text-blue-900">💡 Tip:</span> Click to select single date, or drag to select multiple dates
+                  </div>
                 </div>
               </div>
             </div>
@@ -347,42 +331,31 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
             {/* Right: Time slots with dropdowns */}
             <div>
               <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                {selectedDate ? (
+                {selectedDates.length > 0 ? (
                   <>
                     <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-300">
                       <Clock size={20} className="text-blue-600" />
                       <div>
-                        <div className="font-bold text-slate-900">Select Time Slots</div>
+                        <div className="font-bold text-slate-900">Dates & Time Selected</div>
                         <div className="text-sm text-slate-600">
-                          {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { 
-                            weekday: 'long', 
-                            month: 'long', 
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
+                          {selectedDates.length} date{selectedDates.length > 1 ? 's' : ''} selected
                         </div>
                       </div>
                     </div>
 
-                    {/* Note about time slot */}
-                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <p className="text-xs text-amber-900 font-medium">
-                        <strong>Note:</strong> Select your preferred start and end times to create one availability slot for the selected date.
-                      </p>
-                    </div>
-
                     {/* Time Range Selector */}
                     <TimeRangeSelector 
-                      selectedDate={selectedDate}
+                      selectedDate={selectedDates[0]}
                       selectedSlots={selectedSlots}
                       onSlotsChange={setSelectedSlots}
+                      selectedDates={selectedDates}
                     />
                   </>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center py-20">
                     <Calendar size={48} className="text-slate-300 mb-3" />
-                    <p className="text-slate-600 font-medium">Select a date from the calendar</p>
-                    <p className="text-sm text-slate-500 mt-1">Choose a date to see available time slots</p>
+                    <p className="text-slate-600 font-medium">Select date(s) from the calendar</p>
+                    <p className="text-sm text-slate-500 mt-1">Click one date or drag to select multiple dates</p>
                   </div>
                 )}
               </div>
