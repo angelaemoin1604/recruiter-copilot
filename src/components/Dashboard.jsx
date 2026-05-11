@@ -164,6 +164,9 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
       style.textContent = `
         /* Sparkline drawing animation - DRAWS CLEANLY FROM START TO END */
         @keyframes draw-sparkline {
+          from {
+            stroke-dashoffset: 200;
+          }
           to {
             stroke-dashoffset: 0;
           }
@@ -177,7 +180,6 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         
         /* On hover: draw line cleanly from start to end */
         .stat-card:hover .sparkline-path {
-          stroke-dashoffset: 0;
           animation: draw-sparkline 1.8s ease-out forwards;
         }
         
@@ -186,9 +188,10 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
           display: none !important;
         }
         
-        /* Hide pulse elements completely - no pulsing */
+        /* Show ONLY the final dot at the end - static, no animation */
         .pulse-dot {
-          display: none !important;
+          opacity: 1 !important;
+          display: block !important;
         }
         
         .pulse-ring {
