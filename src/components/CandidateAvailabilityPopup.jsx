@@ -1,40 +1,171 @@
-// CandidateAvailabilityPopup.jsx - FINAL VERSION WITH CLEAR SELECTED DATE
+// CandidateAvailabilityPopup.jsx - WITH START/END TIME DROPDOWNS
 import { useState } from "react";
-import { X, ChevronLeft, ChevronRight, Calendar, Clock, Send } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Calendar, Clock, Send, Plus } from "lucide-react";
+
+// Time Range Selector Component with Start/End dropdowns
+function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange }) {
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+
+  // Generate time options from 7 AM to 8 PM
+  const generateTimeOptions = () => {
+    const options = [];
+    for (let hour = 7; hour <= 20; hour++) {
+      const time24 = `${hour.toString().padStart(2, '0')}:00`;
+      const display = hour < 12 ? `${hour}:00 AM` : 
+                      hour === 12 ? `12:00 PM` : 
+                      `${hour - 12}:00 PM`;
+      options.push({ value: time24, label: display, hour });
+    }
+    return options;
+  };
+
+  const timeOptions = generateTimeOptions();
+
+  // Get available end times based on selected start time
+  const getEndTimeOptions = () => {
+    if (!startTime) return timeOptions;
+    const startHour = parseInt(startTime.split(':')[0]);
+    return timeOptions.filter(opt => opt.hour > startHour && opt.hour <= 20);
+  };
+
+  const addSlots = () => {
+    if (!startTime || !endTime) {
+      alert("Please select both start and end times");
+      return;
+    }
+
+    const startHour = parseInt(startTime.split(':')[0]);
+    const endHour = parseInt(endTime.split(':')[0]);
+
+    if (startHour >= endHour) {
+      alert("End time must be after start time");
+      return;
+    }
+
+    // Generate 1-hour slots
+    const newSlots = [];
+    for (let hour = startHour; hour < endHour; hour++) {
+      const slotStart = `${hour.toString().padStart(2, '0')}:00`;
+      const slotEnd = `${(hour + 1).toString().padStart(2, '0')}:00`;
+      
+      // Format display
+      const startDisplay = hour < 12 ? `${hour}:00 AM` : 
+                          hour === 12 ? `12:00 PM` : 
+                          `${hour - 12}:00 PM`;
+      const endHourDisplay = hour + 1;
+      const endDisplay = endHourDisplay < 12 ? `${endHourDisplay}:00 AM` : 
+                        endHourDisplay === 12 ? `12:00 PM` : 
+                        `${endHourDisplay - 12}:00 PM`;
+      
+      const display = `${startDisplay} - ${endDisplay}`;
+      
+      // Check if slot already exists
+      const exists = selectedSlots.some(s => 
+        s.date === selectedDate && s.start === slotStart
+      );
+      
+      if (!exists) {
+        newSlots.push({
+          date: selectedDate,
+          start: slotStart,
+          end: slotEnd,
+          display
+        });
+      }
+    }
+
+    if (newSlots.length === 0) {
+      alert("All slots in this time range are already selected");
+      return;
+    }
+
+    onSlotsChange([...selectedSlots, ...newSlots]);
+    setStartTime("");
+    setEndTime("");
+  };
+
+  const removeSlot = (slotToRemove) => {
+    onSlotsChange(selectedSlots.filter(s => 
+      !(s.date === slotToRemove.date && s.start === slotToRemove.start)
+    ));
+  };
+
+  const slotsForDate = selectedSlots.filter(s => s.date === selectedDate);
+
+  return (
+    <div className="space-y-4">
+      {/* Start and End Time Dropdowns */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-2">START TIME</label>
+          <select
+            value={startTime}
+            onChange={(e) => {
+              setStartTime(e.target.value);
+              setEndTime(""); // Reset end time when start changes
+            }}
+            className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+          >
+            <option value="">Select start time</option>
+            {timeOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-2">END TIME</label>
+          <select
+            value={endTime}
+            onChange={(e) => setEndTime(e.target.value)}
+            disabled={!startTime}
+            className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
+          >
+            <option value="">Select end time</option>
+            {getEndTimeOptions().map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <button
+        onClick={addSlots}
+        disabled={!startTime || !endTime}
+        className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        <Plus size={18} />
+        Add 1-Hour Slots
+      </button>
+
+      {/* Display selected slots for this date */}
+      {slotsForDate.length > 0 && (
+        <div className="mt-4 border-t-2 border-slate-200 pt-4">
+          <div className="text-xs font-bold text-slate-700 mb-2">SELECTED SLOTS FOR THIS DATE ({slotsForDate.length})</div>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {slotsForDate.map((slot, idx) => (
+              <div key={idx} className="flex items-center justify-between bg-blue-50 border-2 border-blue-200 rounded-lg px-3 py-2">
+                <span className="text-sm font-medium text-blue-900">{slot.display}</span>
+                <button
+                  onClick={() => removeSlot(slot)}
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CandidateAvailabilityPopup({ candidate, onClose, onSend }) {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
-  
-  // Generate time slots with proper display format showing range
-  const generateTimeSlots = () => {
-    const slots = [];
-    for (let hour = 7; hour <= 21; hour++) {
-      const startTime = `${hour.toString().padStart(2, '0')}:00`;
-      const endTime = `${(hour + 1).toString().padStart(2, '0')}:00`;
-      
-      // Format start time
-      const startDisplay = hour < 12 ? `${hour}:00 AM` : 
-                          hour === 12 ? `12:00 PM` : 
-                          `${hour - 12}:00 PM`;
-      
-      // Format end time
-      const endHour = hour + 1;
-      const endDisplay = endHour < 12 ? `${endHour}:00 AM` : 
-                        endHour === 12 ? `12:00 PM` : 
-                        endHour === 24 ? `12:00 AM` :
-                        `${endHour - 12}:00 PM`;
-      
-      // Show time range
-      const display = `${startDisplay} - ${endDisplay}`;
-      
-      slots.push({ start: startTime, end: endTime, display });
-    }
-    return slots;
-  };
-
-  const timeSlots = generateTimeSlots();
 
   // Proper calendar day generation
   const generateCalendarDays = () => {
@@ -223,7 +354,7 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
               </div>
             </div>
 
-            {/* Right: Time slots */}
+            {/* Right: Time slots with dropdowns */}
             <div>
               <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
                 {selectedDate ? (
@@ -243,26 +374,19 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                       </div>
                     </div>
 
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {timeSlots.map(slot => {
-                        const selected = isSlotSelected(selectedDate, slot);
-                        return (
-                          <button
-                            key={slot.start}
-                            onClick={() => toggleSlot(selectedDate, slot)}
-                            className={`
-                              w-full px-4 py-3 rounded-lg text-sm font-medium transition border-2
-                              ${selected 
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
-                                : 'bg-white text-slate-900 border-slate-300 hover:border-blue-400 hover:bg-blue-50'
-                              }
-                            `}
-                          >
-                            {slot.display}
-                          </button>
-                        );
-                      })}
+                    {/* Note about 1-hour slots */}
+                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-xs text-amber-900 font-medium">
+                        <strong>Note:</strong> Each availability slot will be <strong>1 hour</strong> in duration. Select your start and end times below to automatically generate hourly slots.
+                      </p>
                     </div>
+
+                    {/* Time Range Selector */}
+                    <TimeRangeSelector 
+                      selectedDate={selectedDate}
+                      selectedSlots={selectedSlots}
+                      onSlotsChange={setSelectedSlots}
+                    />
                   </>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center py-20">
