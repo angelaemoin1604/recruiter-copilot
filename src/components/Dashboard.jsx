@@ -172,6 +172,15 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
           }
         }
         
+        @keyframes draw-sparkline-hover {
+          from {
+            stroke-dashoffset: 200;
+          }
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+        
         .sparkline-path {
           /* Line animates on page load */
           stroke-dashoffset: 200;
@@ -179,11 +188,9 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
           animation: draw-sparkline 1.8s ease-out forwards;
         }
         
-        /* Re-trigger animation on hover - reset and replay */
+        /* Re-trigger animation on hover with different animation name */
         .stat-card:hover .sparkline-path {
-          stroke-dashoffset: 200;
-          animation: none;
-          animation: draw-sparkline 1.8s ease-out forwards;
+          animation: draw-sparkline-hover 1.8s ease-out forwards;
         }
         
         /* Hide data dots completely - no dots at all */
