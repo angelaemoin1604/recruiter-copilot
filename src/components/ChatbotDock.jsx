@@ -61,7 +61,7 @@ export default function ChatbotDock({ snapshot, currentUser, refreshSnapshot, on
             onJumpToInterviews={onJumpToInterviews}
             onJumpToCandidates={onJumpToCandidates}
             onSuggestionClick={(text) => engine.setInput(text)}
-            suggestionText={idx === engine.messages.length - 1 ? engine.currentSuggestion : null}
+            suggestionText={m.suggestionText || null}
           />
         ))}
         {engine.thinking && (

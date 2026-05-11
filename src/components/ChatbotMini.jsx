@@ -61,7 +61,7 @@ export default function ChatbotMini({ db, snapshot, currentUser, onClose, onOpen
               snapshot={snapshot} 
               engine={engine}
               onSuggestionClick={(text) => engine.setInput(text)}
-              suggestionText={idx === engine.messages.length - 1 ? engine.currentSuggestion : null}
+              suggestionText={m.suggestionText || null}
             />
           ))}
           {engine.thinking && (
