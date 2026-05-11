@@ -173,12 +173,13 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         }
         
         .sparkline-path {
-          /* Line is HIDDEN by default */
+          /* Line animates on page load */
           stroke-dashoffset: 200;
           stroke-dasharray: 200;
+          animation: draw-sparkline 1.8s ease-out forwards;
         }
         
-        /* On hover: draw line cleanly from start to end */
+        /* Also trigger on hover for re-animation */
         .stat-card:hover .sparkline-path {
           animation: draw-sparkline 1.8s ease-out forwards;
         }
