@@ -272,6 +272,21 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                               setSelectedDates([day.dateStr]);
                             } else {
                               // Second click - finalize selection
+                              // Calculate final range from dragStart to current clicked date
+                              const allDates = calendarDays
+                                .filter(d => !d.isPast && d.isCurrentMonth)
+                                .map(d => d.dateStr);
+                              
+                              const startIdx = allDates.indexOf(dragStart);
+                              const endIdx = allDates.indexOf(day.dateStr);
+                              
+                              if (startIdx !== -1 && endIdx !== -1) {
+                                const minIdx = Math.min(startIdx, endIdx);
+                                const maxIdx = Math.max(startIdx, endIdx);
+                                const rangeSelected = allDates.slice(minIdx, maxIdx + 1);
+                                setSelectedDates(rangeSelected);
+                              }
+                              
                               setIsDragging(false);
                               setDragStart(null);
                             }
@@ -339,7 +354,11 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                     <span>Today's date</span>
                   </div>
                   <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                    <span className="font-semibold text-blue-900">💡 Tip:</span> Click on start date, hover over dates to preview selection, then click on end date to finalize. Click the same date twice for single date selection.
+                    <div className="font-semibold text-blue-900 mb-1">💡 Tip:</div>
+                    <div className="text-xs text-blue-800 space-y-1">
+                      <div>1. Click on start date, hover over dates to preview selection, then click on end date to finalize.</div>
+                      <div>2. Click the same date twice for single date selection.</div>
+                    </div>
                   </div>
                 </div>
               </div>
