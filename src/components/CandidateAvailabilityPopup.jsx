@@ -267,11 +267,12 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                           console.log('=== CLICK ===');
                           console.log('Date clicked:', day.dateStr);
                           console.log('isDragging BEFORE:', isDragging);
-                          console.log('dragStart:', dragStart);
+                          console.log('dragStart BEFORE:', dragStart);
                           console.log('selectedDates BEFORE:', selectedDates);
                           
                           if (!isDisabled) {
-                            if (!isDragging) {
+                            // Use dragStart as the source of truth for selection mode
+                            if (dragStart === null) {
                               // First click - start selection
                               console.log('-> FIRST CLICK - Starting selection');
                               setIsDragging(true);
@@ -280,6 +281,7 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                             } else {
                               // Second click - finalize selection
                               console.log('-> SECOND CLICK - Finalizing selection');
+                              console.log('dragStart is:', dragStart);
                               
                               // Calculate final range from dragStart to current clicked date
                               const allDates = calendarDays
@@ -303,6 +305,7 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                                 console.log('ERROR: Could not find start or end index!');
                               }
                               
+                              // Clear drag state AFTER setting dates
                               setIsDragging(false);
                               setDragStart(null);
                               console.log('-> Drag mode ended');
