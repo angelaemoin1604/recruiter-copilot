@@ -29,25 +29,27 @@ function CountUp({ to, duration = 1200 }) {
   return <>{n}</>;
 }
 
-// Sparkline with hover animation
+// Sparkline with progressive animation following data trend
 function Sparkline({ values = [], color = "#3b82f6" }) {
   if (values.length < 2) return null;
   const w = 80, h = 24;
   const max = Math.max(...values, 1);
   const min = Math.min(...values);
   const range = Math.max(max - min, 1);
-  const pts = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * w;
-    const y = h - ((v - min) / range) * h;
-    return `${x},${y}`;
-  }).join(" ");
   
-  const lastX = w;
-  const lastY = h - ((values[values.length - 1] - min) / range) * h;
+  // Calculate points for line
+  const points = values.map((v, i) => ({
+    x: (i / (values.length - 1)) * w,
+    y: h - ((v - min) / range) * h,
+    value: v
+  }));
+  
+  const pts = points.map(p => `${p.x},${p.y}`).join(" ");
+  const lastPoint = points[points.length - 1];
   
   return (
     <svg width={w} height={h} className="overflow-visible">
-      {/* Animated line - animates on parent hover */}
+      {/* Animated line - draws from start to end following the data */}
       <polyline 
         points={pts} 
         fill="none" 
@@ -55,23 +57,46 @@ function Sparkline({ values = [], color = "#3b82f6" }) {
         strokeWidth="2.5" 
         strokeLinecap="round" 
         strokeLinejoin="round" 
-        className="animate-draw-line" 
+        className="animate-draw-line"
+        style={{
+          filter: `drop-shadow(0 0 2px ${color}40)`
+        }}
       />
-      {/* Main dot at endpoint - pulses on hover */}
+      
+      {/* Data dots at each point - appear sequentially */}
+      {points.map((point, i) => (
+        <circle
+          key={i}
+          cx={point.x}
+          cy={point.y}
+          r="2"
+          fill={color}
+          className="data-dot"
+          style={{
+            filter: `drop-shadow(0 0 3px ${color}80)`
+          }}
+        />
+      ))}
+      
+      {/* Final dot at endpoint - pulses after line completes */}
       <circle 
-        cx={lastX} 
-        cy={lastY} 
-        r="2.5" 
+        cx={lastPoint.x} 
+        cy={lastPoint.y} 
+        r="3" 
         fill={color}
         className="pulse-dot"
+        style={{
+          filter: `drop-shadow(0 0 4px ${color})`
+        }}
       />
-      {/* Outer pulsing ring - appears on hover */}
+      
+      {/* Outer pulsing ring - radiates from final dot */}
       <circle 
-        cx={lastX} 
-        cy={lastY} 
+        cx={lastPoint.x} 
+        cy={lastPoint.y} 
         r="4" 
         fill={color} 
-        opacity="0.4"
+        opacity="0"
         className="pulse-ring"
       />
     </svg>
@@ -108,10 +133,10 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
       const style = document.createElement('style');
       style.id = styleId;
       style.textContent = `
-        /* Sparkline drawing animation - TRIGGERS ON HOVER */
+        /* Sparkline drawing animation - DRAWS FROM START TO END FOLLOWING DATA */
         @keyframes draw-line {
           from {
-            stroke-dashoffset: 200;
+            stroke-dashoffset: 1000;
           }
           to {
             stroke-dashoffset: 0;
@@ -119,46 +144,74 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         }
         
         .animate-draw-line {
-          stroke-dasharray: 200;
-          stroke-dashoffset: 200;
-          transition: stroke-dashoffset 0.1s;
+          stroke-dasharray: 1000;
+          stroke-dashoffset: 1000;
         }
         
-        /* Trigger animation on card hover */
+        /* Trigger animation on card hover - draws line progressively */
         .stat-card:hover .animate-draw-line {
-          animation: draw-line 1.5s ease-out forwards;
+          animation: draw-line 2s ease-in-out forwards;
         }
         
-        /* Also animate the pulsing dot on hover */
-        @keyframes pulse-dot {
+        /* Animate dots appearing along the line */
+        @keyframes fade-in-dot {
+          0% {
+            opacity: 0;
+            transform: scale(0);
+          }
+          50% {
+            transform: scale(1.3);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        
+        .stat-card:hover .data-dot {
+          animation: fade-in-dot 0.4s ease-out forwards;
+        }
+        
+        .stat-card:hover .data-dot:nth-child(1) { animation-delay: 0.2s; }
+        .stat-card:hover .data-dot:nth-child(2) { animation-delay: 0.4s; }
+        .stat-card:hover .data-dot:nth-child(3) { animation-delay: 0.6s; }
+        .stat-card:hover .data-dot:nth-child(4) { animation-delay: 0.8s; }
+        .stat-card:hover .data-dot:nth-child(5) { animation-delay: 1.0s; }
+        .stat-card:hover .data-dot:nth-child(6) { animation-delay: 1.2s; }
+        .stat-card:hover .data-dot:nth-child(7) { animation-delay: 1.4s; }
+        
+        /* Pulse the final dot */
+        @keyframes pulse-final-dot {
           0%, 100% {
-            r: 2.5;
+            r: 3;
             opacity: 1;
           }
           50% {
-            r: 4;
+            r: 5;
             opacity: 0.7;
           }
         }
         
         .stat-card:hover .pulse-dot {
-          animation: pulse-dot 1s ease-in-out infinite;
+          animation: pulse-final-dot 1s ease-in-out infinite;
+          animation-delay: 1.6s;
         }
         
-        /* Pulse ring on hover */
+        /* Pulse ring expands from final dot */
         @keyframes pulse-ring {
           0% {
-            opacity: 0.7;
             r: 4;
+            opacity: 0.6;
           }
           100% {
+            r: 10;
             opacity: 0;
-            r: 8;
           }
         }
         
         .stat-card:hover .pulse-ring {
           animation: pulse-ring 1.5s ease-out infinite;
+          animation-delay: 1.8s;
         }
         
         /* Grow up animation for funnel bars */
@@ -200,6 +253,12 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         
         .animate-ticker-fade {
           animation: ticker-fade 4.5s ease-in-out forwards;
+        }
+        
+        /* Hide data dots by default, show on hover */
+        .data-dot {
+          opacity: 0;
+          transform: scale(0);
         }
       `;
       document.head.appendChild(style);
