@@ -29,7 +29,7 @@ function CountUp({ to, duration = 1200 }) {
   return <>{n}</>;
 }
 
-// Sparkline
+// Sparkline with animation
 function Sparkline({ values = [], color = "#3b82f6" }) {
   if (values.length < 2) return null;
   const w = 80, h = 24;
@@ -41,10 +41,41 @@ function Sparkline({ values = [], color = "#3b82f6" }) {
     const y = h - ((v - min) / range) * h;
     return `${x},${y}`;
   }).join(" ");
+  
+  const lastX = w;
+  const lastY = h - ((values[values.length - 1] - min) / range) * h;
+  
   return (
     <svg width={w} height={h} className="overflow-visible">
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-draw-line" />
-      <circle cx={w} cy={h - ((values[values.length - 1] - min) / range) * h} r="2.5" fill={color} />
+      {/* Animated line */}
+      <polyline 
+        points={pts} 
+        fill="none" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className="animate-draw-line" 
+      />
+      {/* Pulsing dot at the end */}
+      <circle 
+        cx={lastX} 
+        cy={lastY} 
+        r="2.5" 
+        fill={color}
+        className="animate-pulse"
+      />
+      {/* Outer pulsing ring */}
+      <circle 
+        cx={lastX} 
+        cy={lastY} 
+        r="4" 
+        fill="none" 
+        stroke={color} 
+        strokeWidth="1"
+        opacity="0.4"
+        className="animate-pulse-ring"
+      />
     </svg>
   );
 }
@@ -71,6 +102,91 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
   const [collabFor, setCollabFor] = useState(null);
   const [interviewPopup, setInterviewPopup] = useState(null);
   const [now, setNow] = useState(new Date());
+
+  // ✨ ADD LIVE ANIMATIONS CSS
+  useEffect(() => {
+    const styleId = 'dashboard-animations';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        /* Sparkline drawing animation */
+        @keyframes draw-line {
+          from {
+            stroke-dashoffset: 200;
+          }
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+        
+        .animate-draw-line {
+          stroke-dasharray: 200;
+          stroke-dashoffset: 200;
+          animation: draw-line 1.5s ease-out forwards;
+        }
+        
+        /* Grow up animation for funnel bars */
+        @keyframes grow-up {
+          from {
+            transform: scaleY(0);
+            opacity: 0;
+          }
+          to {
+            transform: scaleY(1);
+            opacity: 1;
+          }
+        }
+        
+        .animate-grow-up {
+          transform-origin: bottom;
+          animation: grow-up 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        
+        /* Ticker fade animation */
+        @keyframes ticker-fade {
+          0% {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          10% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          90% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+        }
+        
+        .animate-ticker-fade {
+          animation: ticker-fade 4.5s ease-in-out forwards;
+        }
+        
+        /* Pulse animation for live indicator */
+        @keyframes pulse-ring {
+          0% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+          }
+          70% {
+            box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+          }
+        }
+        
+        .animate-pulse-ring {
+          animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => setTickerIndex(i => i + 1), 4500);
