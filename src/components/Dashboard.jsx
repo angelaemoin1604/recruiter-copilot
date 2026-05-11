@@ -45,6 +45,15 @@ function Sparkline({ values = [], color = "#3b82f6" }) {
   }));
   
   const pts = points.map(p => `${p.x},${p.y}`).join(" ");
+  
+  // Calculate approximate path length
+  let pathLength = 0;
+  for (let i = 1; i < points.length; i++) {
+    const dx = points[i].x - points[i-1].x;
+    const dy = points[i].y - points[i-1].y;
+    pathLength += Math.sqrt(dx * dx + dy * dy);
+  }
+  
   const lastPoint = points[points.length - 1];
   
   return (
@@ -57,8 +66,10 @@ function Sparkline({ values = [], color = "#3b82f6" }) {
         strokeWidth="2.5" 
         strokeLinecap="round" 
         strokeLinejoin="round" 
-        className="animate-draw-line"
+        className="sparkline-path"
         style={{
+          strokeDasharray: pathLength,
+          strokeDashoffset: 0,
           filter: `drop-shadow(0 0 2px ${color}40)`
         }}
       />
@@ -69,7 +80,7 @@ function Sparkline({ values = [], color = "#3b82f6" }) {
           key={i}
           cx={point.x}
           cy={point.y}
-          r="2"
+          r="2.5"
           fill={color}
           className="data-dot"
           style={{
@@ -82,7 +93,7 @@ function Sparkline({ values = [], color = "#3b82f6" }) {
       <circle 
         cx={lastPoint.x} 
         cy={lastPoint.y} 
-        r="3" 
+        r="3.5" 
         fill={color}
         className="pulse-dot"
         style={{
@@ -94,9 +105,10 @@ function Sparkline({ values = [], color = "#3b82f6" }) {
       <circle 
         cx={lastPoint.x} 
         cy={lastPoint.y} 
-        r="4" 
-        fill={color} 
-        opacity="0"
+        r="5" 
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
         className="pulse-ring"
       />
     </svg>
@@ -150,25 +162,31 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
       const style = document.createElement('style');
       style.id = styleId;
       style.textContent = `
-        /* Sparkline drawing animation - DRAWS FROM START TO END FOLLOWING DATA */
-        @keyframes draw-line {
+        /* Sparkline drawing animation - DRAWS PROGRESSIVELY FROM START TO END */
+        @keyframes draw-sparkline {
           0% {
-            stroke-dashoffset: 1000;
+            stroke-dashoffset: var(--path-length);
           }
           100% {
             stroke-dashoffset: 0;
           }
         }
         
-        .animate-draw-line {
-          stroke-dasharray: 1000;
-          stroke-dashoffset: 0; /* Line is visible by default */
+        .sparkline-path {
+          /* Line is visible by default */
+          stroke-dashoffset: 0;
+          transition: stroke-dashoffset 0.3s ease;
         }
         
-        /* Trigger animation on card hover - draws line progressively */
-        .stat-card:hover .animate-draw-line {
-          stroke-dashoffset: 1000; /* Reset to start */
-          animation: draw-line 2s ease-out forwards;
+        /* On hover: animate line drawing from start to end */
+        .stat-card:hover .sparkline-path {
+          animation: draw-sparkline 2s ease-out forwards;
+        }
+        
+        /* Force the animation to start from beginning */
+        .stat-card:hover .sparkline-path {
+          stroke-dashoffset: 200;
+          animation: draw-sparkline 2s ease-out forwards;
         }
         
         /* Hide data dots by default */
@@ -216,11 +234,11 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         /* Pulse the final dot */
         @keyframes pulse-final-dot {
           0%, 100% {
-            r: 3;
+            transform: scale(1);
             opacity: 1;
           }
           50% {
-            r: 5;
+            transform: scale(1.5);
             opacity: 0.7;
           }
         }
@@ -233,11 +251,11 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         /* Pulse ring expands from final dot */
         @keyframes pulse-ring {
           0% {
-            r: 4;
+            transform: scale(1);
             opacity: 0.6;
           }
           100% {
-            r: 10;
+            transform: scale(2.5);
             opacity: 0;
           }
         }
