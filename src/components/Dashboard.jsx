@@ -106,20 +106,21 @@ function Sparkline({ values = [], color = "#3b82f6" }) {
 // Funnel segment with hover animation
 function FunnelStage({ label, count, total, color, onClick }) {
   const pct = total > 0 ? (count / total) * 100 : 0;
+  const targetHeight = Math.max(pct, 8); // Minimum 8% for visibility
+  
   return (
     <button onClick={onClick} className="flex-1 group min-w-0 funnel-card">
       <div className="text-[10px] uppercase tracking-wider text-slate-700 font-bold mb-1 truncate">{label}</div>
       <div className="relative h-16 rounded-md overflow-hidden border border-slate-300 bg-slate-50 group-hover:shadow-lg group-hover:border-blue-300 transition">
         {/* Animated bar that grows from bottom on hover */}
         <div 
-          className={`absolute bottom-0 left-0 right-0 ${color} funnel-bar`}
+          className={`funnel-bar ${color}`}
           style={{ 
-            '--target-height': `${Math.max(pct, 8)}%`,
-            backgroundImage: `linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent)`
+            '--target-height': `${targetHeight}%`
           }}
         />
         {/* Content stays in center */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
           <div className="text-2xl font-black text-slate-900"><CountUp to={count} /></div>
           <div className="text-[10px] text-slate-700 font-medium">{Math.round(pct)}%</div>
         </div>
@@ -237,12 +238,16 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         .funnel-bar {
           height: 0%;
           opacity: 0;
-          transition: height 0.1s, opacity 0.1s;
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
         }
         
         /* Trigger animation on funnel card hover */
         .funnel-card:hover .funnel-bar {
           animation: grow-up 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          height: var(--target-height);
         }
         
         /* Add a shine effect when hovering */
@@ -255,10 +260,16 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
           }
         }
         
-        .funnel-card:hover .funnel-bar {
+        .funnel-card:hover .funnel-bar::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(120deg, transparent, rgba(255,255,255,0.4), transparent);
           background-size: 200% 100%;
-          animation: grow-up 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
-                     shine 1.5s ease-in-out infinite;
+          animation: shine 1.5s ease-in-out infinite;
         }
         
         /* Ticker fade animation */
