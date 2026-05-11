@@ -34,34 +34,37 @@ function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange, selecte
     }
   }, [selectedDates, startTime, endTime]);
 
-  // Generate time options from 7 AM to 8 PM
-  const generateTimeOptions = () => {
-    const options = [];
-    for (let hour = 7; hour <= 20; hour++) {
+  // Generate time options - Start: 7-10 AM, End: 6-10 PM
+  const generateStartTimeOptions = () => {
+    const hours = [7, 8, 9, 10];
+    return hours.map(hour => {
       const time24 = `${hour.toString().padStart(2, '0')}:00`;
-      const display = hour < 12 ? `${hour}:00 AM` : 
-                      hour === 12 ? `12:00 PM` : 
-                      `${hour - 12}:00 PM`;
-      options.push({ value: time24, label: display, hour });
-    }
-    return options;
+      const display = `${hour}:00 AM`;
+      return { value: time24, label: display, hour };
+    });
   };
 
-  const timeOptions = generateTimeOptions();
-
-  // Get available end times based on selected start time
-  const getEndTimeOptions = () => {
-    if (!startTime) return timeOptions;
-    const startHour = parseInt(startTime.split(':')[0]);
-    return timeOptions.filter(opt => opt.hour > startHour && opt.hour <= 20);
+  const generateEndTimeOptions = () => {
+    const hours = [18, 19, 20, 22]; // 6 PM, 7 PM, 8 PM, 10 PM
+    return hours.map(hour => {
+      const time24 = `${hour.toString().padStart(2, '0')}:00`;
+      const display = hour === 18 ? '6:00 PM' :
+                      hour === 19 ? '7:00 PM' :
+                      hour === 20 ? '8:00 PM' :
+                      '10:00 PM';
+      return { value: time24, label: display, hour };
+    });
   };
+
+  const startTimeOptions = generateStartTimeOptions();
+  const endTimeOptions = generateEndTimeOptions();
 
   return (
     <div className="space-y-4">
       {/* Note about time slot */}
       <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
         <p className="text-xs text-amber-900 font-medium">
-          <strong>Note:</strong> Select your preferred start and end times. These times will apply to all selected dates.
+          <strong>Note:</strong> Select your preferred start and end times. These availability slots will be sent to the candidate for them to choose their convenient date and time.
         </p>
       </div>
 
@@ -74,7 +77,7 @@ function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange, selecte
             onChange={(e) => setStartTime(e.target.value)}
             className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
           >
-            {timeOptions.map(opt => (
+            {startTimeOptions.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
@@ -87,7 +90,7 @@ function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange, selecte
             onChange={(e) => setEndTime(e.target.value)}
             className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
           >
-            {getEndTimeOptions().map(opt => (
+            {endTimeOptions.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
@@ -258,7 +261,7 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                           if (!isDisabled) {
                             setIsDragging(true);
                             setDragStart(day.dateStr);
-                            // Toggle single date
+                            // Toggle single date - click same date twice to deselect
                             if (isSelected) {
                               setSelectedDates(selectedDates.filter(d => d !== day.dateStr));
                             } else {
@@ -267,7 +270,7 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                           }
                         }}
                         onMouseEnter={() => {
-                          if (isDragging && !isDisabled && dragStart) {
+                          if (isDragging && !isDisabled && dragStart && day.dateStr !== dragStart) {
                             // Add date to selection while dragging
                             if (!selectedDates.includes(day.dateStr)) {
                               setSelectedDates([...selectedDates, day.dateStr]);
@@ -286,7 +289,7 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                           ${day.isToday && !isSelected ? 'ring-2 ring-orange-400' : ''}
                           
                           ${isSelected 
-                            ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-black text-base shadow-lg ring-4 ring-blue-300 scale-105 transform' 
+                            ? 'bg-gradient-to-br from-blue-700 to-indigo-700 text-white font-black text-base shadow-xl ring-4 ring-blue-400 scale-105 transform' 
                             : ''
                           }
                           
@@ -310,8 +313,8 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                 {/* Updated Legend */}
                 <div className="mt-4 text-xs text-slate-600 space-y-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-600 to-indigo-600 shadow-md ring-2 ring-blue-300"></div>
-                    <span className="font-semibold">Selected dates</span>
+                    <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-700 to-indigo-700 shadow-xl ring-2 ring-blue-400"></div>
+                    <span className="font-semibold">Selected dates (darker blue)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded bg-emerald-100 border-2 border-emerald-400"></div>
@@ -322,7 +325,7 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                     <span>Today's date</span>
                   </div>
                   <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                    <span className="font-semibold text-blue-900">💡 Tip:</span> Click to select single date, or drag to select multiple dates
+                    <span className="font-semibold text-blue-900">💡 Tip:</span> Click once to select, click again to deselect. Or drag to select multiple dates.
                   </div>
                 </div>
               </div>
