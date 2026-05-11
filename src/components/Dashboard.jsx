@@ -232,39 +232,38 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         @keyframes grow-up {
           from {
             height: 0%;
-            opacity: 0;
           }
           to {
             height: var(--target-height);
-            opacity: 1;
           }
         }
         
         .funnel-bar {
-          height: 0%;
-          opacity: 0;
+          /* Bar is always visible at its target height */
+          height: var(--target-height);
+          opacity: 1;
           position: absolute;
           bottom: 0;
           left: 0;
           right: 0;
           margin: 0;
           padding: 0;
-          border-radius: 0 0 calc(0.375rem - 1px) calc(0.375rem - 1px); /* Match parent's bottom border radius */
+          border-radius: 0 0 calc(0.375rem - 1px) calc(0.375rem - 1px);
+          transition: all 0.3s ease;
         }
         
-        /* Trigger animation on funnel card hover */
+        /* On hover: animate from 0 to target height */
         .funnel-card:hover .funnel-bar {
           animation: grow-up 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-          height: var(--target-height);
         }
         
         /* Add a shine effect when hovering */
         @keyframes shine {
           0% {
-            background-position: -100% 0;
+            left: -100%;
           }
           100% {
-            background-position: 200% 0;
+            left: 200%;
           }
         }
         
@@ -272,11 +271,10 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
           content: '';
           position: absolute;
           top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: linear-gradient(120deg, transparent, rgba(255,255,255,0.4), transparent);
-          background-size: 200% 100%;
+          left: -100%;
+          width: 50%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
           animation: shine 1.5s ease-in-out infinite;
         }
         
