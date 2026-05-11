@@ -1,4 +1,4 @@
-// useChatEngine.js - PROPER FIX - Keep autofill, but make text match everywhere
+// useChatEngine.js - COMPLETE WORKING FIX
 import { useState, useCallback } from "react";
 import { processMessage, resolveInterviewer, checkChosenInterviewer } from "../resolution.js";
 import * as DB from "../db.js";
@@ -27,7 +27,7 @@ const SUGGESTIONS = [
   { candidate: "Karthik Raman", job: "QA Engineer", round: "Interview 1", interviewer: "Vikram Singh", mode: "Video", topic: "Testing Fundamentals" },
   { candidate: "Karthik Raman", job: "QA Engineer", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Telephonic", topic: "Automation Testing" },
   { candidate: "Meera Joshi", job: "HR Business Partner", round: "HR Stage", interviewer: "Rajesh Kumar", mode: "In-person", topic: "HR Policies" },
-  { candidate: "Meera Joshi", job: "HR Business Partner", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Video", topic: "HR Operations" },
+  { candidate: "Meera Joshi", job: "HR Business Partner", round: "HR Stage", interviewer: "Aarav Mehta", mode: "Video", topic: "HR Operations" },
   { candidate: "Anil Kumar", job: "Application Developer II", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Video", topic: "Java & Spring" },
   { candidate: "Anil Kumar", job: "Application Developer II", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Telephonic", topic: "REST APIs" },
   { candidate: "Pooja Bhat", job: "Senior Java Developer", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Video", topic: "Backend Architecture" },
@@ -46,8 +46,7 @@ function nextSuggestion() {
   return SUGGESTIONS[idx];
 }
 
-const TIMES = ["9-10 AM", "10-11 AM", "11 AM-12 PM", "2-3 PM", "3-4 PM", "4-5 PM"];
-
+// Generate future dates - always at least 2 days ahead
 function futureDate(daysAhead) {
   const d = new Date();
   d.setDate(d.getDate() + daysAhead);
@@ -60,8 +59,34 @@ function futureDate(daysAhead) {
   return `${day}${suffix} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function buildSuggestionText(s, daysAhead, time) {
+// Generate future times - always ahead of current time
+function futureTimes() {
+  const now = new Date();
+  const currentHour = now.getHours();
+  
+  const allTimes = [
+    { display: "9-10 AM", start: 9 },
+    { display: "10-11 AM", start: 10 },
+    { display: "11 AM-12 PM", start: 11 },
+    { display: "2-3 PM", start: 14 },
+    { display: "3-4 PM", start: 15 },
+    { display: "4-5 PM", start: 16 },
+  ];
+  
+  // Filter to only future times (at least 2 hours from now for scheduling buffer)
+  const futureTimes = allTimes.filter(t => t.start > currentHour + 2);
+  
+  // If no future times today, return all times (for next day)
+  return futureTimes.length > 0 ? futureTimes.map(t => t.display) : allTimes.map(t => t.display);
+}
+
+function buildSuggestionText(s) {
+  // Always suggest 2-7 days ahead
+  const daysAhead = 2 + Math.floor(Math.random() * 6);
   const date = futureDate(daysAhead);
+  const times = futureTimes();
+  const time = times[Math.floor(Math.random() * times.length)];
+  
   return `Schedule ${s.round} for ${s.candidate}, ${s.job}, ${date}, ${time}, ${s.mode}, with ${s.interviewer}, topic ${s.topic}`;
 }
 
@@ -79,20 +104,18 @@ function formatDateDisplay(dateStr) {
   return `${d}${suffix} ${months[parseInt(month) - 1]} ${year}`;
 }
 
-// FIX: Generate hello message with suggestion ONCE, so text and autofill match
+// Generate hello message with matching text and autofill
 function makeHelloMsg() {
   const s = nextSuggestion();
-  const daysAhead = 2 + Math.floor(Math.random() * 5);
-  const time = TIMES[Math.floor(Math.random() * TIMES.length)];
-  const suggestionText = buildSuggestionText(s, daysAhead, time);
+  const suggestionText = buildSuggestionText(s);
   
   return {
     id: 1,
     role: "assistant",
     kind: "text",
-    // FIX: Use the SAME suggestionText in content so they match
+    // CRITICAL: Use the SAME text in both places
     content: `Hi! I'm Recruiter Copilot.\n\nTell me what to schedule. Try:\n"${suggestionText}"`,
-    suggestionText // Pass this so autofill button gets the same text
+    suggestionText // CRITICAL: This makes the autofill button appear
   };
 }
 
@@ -102,6 +125,7 @@ function scheduleKey(msg) {
 }
 
 export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast }) {
+  // Initialize with hello message
   const [messages, setMessages] = useState(() => [makeHelloMsg()]);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(null);
@@ -272,11 +296,9 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
       await refreshSnapshot();
       setPending(null);
       
-      // FIX: Generate next suggestion with SAME format
+      // Generate next suggestion
       const next = nextSuggestion();
-      const nextDate = futureDate(3 + Math.floor(Math.random() * 4));
-      const nextTime = TIMES[Math.floor(Math.random() * TIMES.length)];
-      const nextSuggestionText = buildSuggestionText(next, 0, nextTime).replace(futureDate(0), nextDate);
+      const nextSuggestionText = buildSuggestionText(next);
       
       // Add success message
       addMsg({
@@ -286,13 +308,12 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
         content: `${msg.candidate.candidate.name} with ${msg.interviewer.name} on ${formatDateDisplay(msg.slots.date)}, ${msg.slots.time.start}–${msg.slots.time.end}.`
       });
       
-      // FIX: Add next suggestion with MATCHING text
+      // CRITICAL: Add next suggestion with BOTH content AND suggestionText property
       addMsg({
         role: "assistant",
         kind: "text",
-        // Use the SAME suggestionText in content
         content: `Next to schedule? Try:\n"${nextSuggestionText}"`,
-        suggestionText: nextSuggestionText // Pass this for autofill
+        suggestionText: nextSuggestionText // CRITICAL: This makes autofill appear
       });
       
       setCurrentSuggestion(nextSuggestionText);
