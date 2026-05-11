@@ -1,6 +1,7 @@
 // CandidateAvailabilityPopup.jsx - WITH START/END TIME DROPDOWNS
 import { useState, useEffect } from "react";
 import { X, ChevronLeft, ChevronRight, Calendar, Clock, Send, Plus } from "lucide-react";
+import { sendAvailabilityEmail } from "../utils";
 
 // Time Range Selector Component with Start/End dropdowns
 function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange, selectedDates }) {
@@ -188,12 +189,34 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
     return selectedSlots.some(s => s.date === dateStr);
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (selectedSlots.length === 0) {
       alert("Please select at least one time slot");
       return;
     }
-    onSend(selectedSlots);
+
+    try {
+      // Send availability email to candidate
+      const result = await sendAvailabilityEmail(
+        {
+          id: candidate.candidate_id || candidate.id,
+          name: candidate.name,
+          email: candidate.email,
+          job: candidate.job_title || candidate.job || "Position"
+        },
+        selectedSlots
+      );
+
+      if (result.success) {
+        alert(`✅ Availability request sent to ${candidate.name}!\n\nConfirmation URL:\n${result.confirmationUrl}\n\n(Copy this URL to test the candidate confirmation page)`);
+        onClose();
+      } else {
+        alert(`❌ Failed to send: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error sending availability:', error);
+      alert(`❌ Error: ${error.message}`);
+    }
   };
 
   return (
@@ -253,54 +276,35 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                       <button
                         key={`${day.dateStr}-${i}`}
                         onClick={() => {
-                          console.log('=== CLICK ===');
-                          console.log('Date clicked:', day.dateStr);
-                          console.log('isDragging BEFORE:', isDragging);
-                          console.log('dragStart BEFORE:', dragStart);
-                          console.log('selectedDates BEFORE:', selectedDates);
-                          
                           if (!isDisabled) {
                             // Use dragStart as the source of truth for selection mode
                             if (dragStart === null) {
                               // First click - start selection
-                              console.log('-> FIRST CLICK - Starting selection');
                               setIsDragging(true);
                               setDragStart(day.dateStr);
                               setSelectedDates([day.dateStr]);
                             } else {
                               // Second click - finalize selection
-                              console.log('-> SECOND CLICK - Finalizing selection');
-                              console.log('dragStart is:', dragStart);
-                              
                               // Calculate final range from dragStart to current clicked date
                               const allDates = calendarDays
                                 .filter(d => !d.isPast && d.isCurrentMonth)
                                 .map(d => d.dateStr);
                               
-                              console.log('All available dates:', allDates);
-                              
                               const startIdx = allDates.indexOf(dragStart);
                               const endIdx = allDates.indexOf(day.dateStr);
-                              
-                              console.log('startIdx:', startIdx, 'endIdx:', endIdx);
                               
                               if (startIdx !== -1 && endIdx !== -1) {
                                 const minIdx = Math.min(startIdx, endIdx);
                                 const maxIdx = Math.max(startIdx, endIdx);
                                 const rangeSelected = allDates.slice(minIdx, maxIdx + 1);
-                                console.log('Range to select:', rangeSelected);
                                 setSelectedDates(rangeSelected);
-                              } else {
-                                console.log('ERROR: Could not find start or end index!');
                               }
                               
                               // Clear drag state AFTER setting dates
                               setIsDragging(false);
                               setDragStart(null);
-                              console.log('-> Drag mode ended');
                             }
                           }
-                          console.log('=== END CLICK ===');
                         }}
                         onMouseEnter={() => {
                           if (isDragging && !isDisabled && dragStart) {

@@ -3,16 +3,27 @@ import { useState, useEffect } from "react";
 import Login from "./components/Login.jsx";
 import RippleHireReplica from "./components/RippleHireReplica.jsx";
 import RecruiterCopilot from "./components/RecruiterCopilot.jsx";
+import CandidateConfirmAvailability from "./components/CandidateConfirmAvailability.jsx";
 import { ToastProvider } from "./components/Toast.jsx";
 import * as DB from "./db.js";
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
-  const [view, setView] = useState("login"); // "login" | "replica" | "prompt2schedule"
+  const [view, setView] = useState("login"); // "login" | "replica" | "prompt2schedule" | "confirm-availability"
   const [snapshot, setSnapshot] = useState(null);
+  const [availabilityToken, setAvailabilityToken] = useState(null);
 
   useEffect(() => {
     refreshSnapshot();
+    
+    // Check if URL has /confirm-availability/:token
+    const path = window.location.pathname;
+    const match = path.match(/\/confirm-availability\/([^/]+)/);
+    if (match) {
+      const token = match[1];
+      setAvailabilityToken(token);
+      setView("confirm-availability");
+    }
   }, []);
 
   const refreshSnapshot = async () => {
@@ -30,7 +41,7 @@ export default function App() {
     setView("login");
   };
 
-  if (!snapshot) {
+  if (!snapshot && view !== "confirm-availability") {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">
         <div className="text-center">
@@ -61,6 +72,12 @@ export default function App() {
           currentUser={currentUser}
           onLogout={handleLogout}
           onBack={() => setView("replica")}
+        />
+      )}
+      {view === "confirm-availability" && (
+        <CandidateConfirmAvailability 
+          availabilityToken={availabilityToken}
+          onClose={() => setView("login")}
         />
       )}
     </ToastProvider>
