@@ -4,8 +4,8 @@ import { X, ChevronLeft, ChevronRight, Calendar, Clock, Send, Plus } from "lucid
 
 // Time Range Selector Component with Start/End dropdowns
 function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange }) {
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
+  const [startTime, setStartTime] = useState("10:00");
+  const [endTime, setEndTime] = useState("19:00");
 
   // Generate time options from 7 AM to 8 PM
   const generateTimeOptions = () => {
@@ -29,7 +29,7 @@ function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange }) {
     return timeOptions.filter(opt => opt.hour > startHour && opt.hour <= 20);
   };
 
-  const addSlots = () => {
+  const addSlot = () => {
     if (!startTime || !endTime) {
       alert("Please select both start and end times");
       return;
@@ -43,51 +43,39 @@ function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange }) {
       return;
     }
 
-    // Generate 1-hour slots
-    const newSlots = [];
-    for (let hour = startHour; hour < endHour; hour++) {
-      const slotStart = `${hour.toString().padStart(2, '0')}:00`;
-      const slotEnd = `${(hour + 1).toString().padStart(2, '0')}:00`;
-      
-      // Format display
-      const startDisplay = hour < 12 ? `${hour}:00 AM` : 
-                          hour === 12 ? `12:00 PM` : 
-                          `${hour - 12}:00 PM`;
-      const endHourDisplay = hour + 1;
-      const endDisplay = endHourDisplay < 12 ? `${endHourDisplay}:00 AM` : 
-                        endHourDisplay === 12 ? `12:00 PM` : 
-                        `${endHourDisplay - 12}:00 PM`;
-      
-      const display = `${startDisplay} - ${endDisplay}`;
-      
-      // Check if slot already exists
-      const exists = selectedSlots.some(s => 
-        s.date === selectedDate && s.start === slotStart
-      );
-      
-      if (!exists) {
-        newSlots.push({
-          date: selectedDate,
-          start: slotStart,
-          end: slotEnd,
-          display
-        });
-      }
-    }
-
-    if (newSlots.length === 0) {
-      alert("All slots in this time range are already selected");
+    // Format display
+    const startDisplay = startHour < 12 ? `${startHour}:00 AM` : 
+                        startHour === 12 ? `12:00 PM` : 
+                        `${startHour - 12}:00 PM`;
+    const endDisplay = endHour < 12 ? `${endHour}:00 AM` : 
+                      endHour === 12 ? `12:00 PM` : 
+                      `${endHour - 12}:00 PM`;
+    
+    const display = `${startDisplay} - ${endDisplay}`;
+    
+    // Check if slot already exists for this date
+    const exists = selectedSlots.some(s => 
+      s.date === selectedDate && s.start === startTime && s.end === endTime
+    );
+    
+    if (exists) {
+      alert("This exact time slot is already selected");
       return;
     }
 
-    onSlotsChange([...selectedSlots, ...newSlots]);
-    setStartTime("");
-    setEndTime("");
+    const newSlot = {
+      date: selectedDate,
+      start: startTime,
+      end: endTime,
+      display
+    };
+
+    onSlotsChange([...selectedSlots, newSlot]);
   };
 
   const removeSlot = (slotToRemove) => {
     onSlotsChange(selectedSlots.filter(s => 
-      !(s.date === slotToRemove.date && s.start === slotToRemove.start)
+      !(s.date === slotToRemove.date && s.start === slotToRemove.start && s.end === slotToRemove.end)
     ));
   };
 
@@ -103,11 +91,15 @@ function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange }) {
             value={startTime}
             onChange={(e) => {
               setStartTime(e.target.value);
-              setEndTime(""); // Reset end time when start changes
+              // Reset end time if it's now before the new start time
+              const newStartHour = parseInt(e.target.value.split(':')[0]);
+              const currentEndHour = parseInt(endTime.split(':')[0]);
+              if (currentEndHour <= newStartHour) {
+                setEndTime("");
+              }
             }}
             className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
           >
-            <option value="">Select start time</option>
             {timeOptions.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
@@ -119,10 +111,8 @@ function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange }) {
           <select
             value={endTime}
             onChange={(e) => setEndTime(e.target.value)}
-            disabled={!startTime}
-            className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
           >
-            <option value="">Select end time</option>
             {getEndTimeOptions().map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
@@ -131,12 +121,12 @@ function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange }) {
       </div>
 
       <button
-        onClick={addSlots}
+        onClick={addSlot}
         disabled={!startTime || !endTime}
         className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         <Plus size={18} />
-        Add 1-Hour Slots
+        Add Time Slot
       </button>
 
       {/* Display selected slots for this date */}
@@ -374,10 +364,10 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                       </div>
                     </div>
 
-                    {/* Note about 1-hour slots */}
+                    {/* Note about time slot */}
                     <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                       <p className="text-xs text-amber-900 font-medium">
-                        <strong>Note:</strong> Each availability slot will be <strong>1 hour</strong> in duration. Select your start and end times below to automatically generate hourly slots.
+                        <strong>Note:</strong> Select your preferred start and end times to create one availability slot for the selected date.
                       </p>
                     </div>
 
