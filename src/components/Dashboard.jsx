@@ -164,28 +164,21 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
       style.textContent = `
         /* Sparkline drawing animation - DRAWS PROGRESSIVELY FROM START TO END */
         @keyframes draw-sparkline {
-          0% {
-            stroke-dashoffset: var(--path-length);
+          from {
+            stroke-dashoffset: 200;
           }
-          100% {
+          to {
             stroke-dashoffset: 0;
           }
         }
         
         .sparkline-path {
-          /* Line is visible by default */
-          stroke-dashoffset: 0;
-          transition: stroke-dashoffset 0.3s ease;
+          /* Line is HIDDEN by default - only appears on hover */
+          stroke-dashoffset: 200;
         }
         
         /* On hover: animate line drawing from start to end */
         .stat-card:hover .sparkline-path {
-          animation: draw-sparkline 2s ease-out forwards;
-        }
-        
-        /* Force the animation to start from beginning */
-        .stat-card:hover .sparkline-path {
-          stroke-dashoffset: 200;
           animation: draw-sparkline 2s ease-out forwards;
         }
         
