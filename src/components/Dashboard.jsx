@@ -114,13 +114,16 @@ function FunnelStage({ label, count, total, color, onClick }) {
   return (
     <button onClick={onClick} className="flex-1 group min-w-0 funnel-card">
       <div className="text-[10px] uppercase tracking-wider text-slate-700 font-bold mb-1 truncate">{label}</div>
-      <div className="relative h-16 rounded-md overflow-hidden border border-slate-300 bg-slate-50 group-hover:shadow-lg group-hover:border-blue-300 transition">
+      <div className="relative h-16 rounded-md overflow-hidden border border-slate-300 bg-slate-50 group-hover:shadow-lg group-hover:border-blue-300 transition" style={{ padding: 0, margin: 0 }}>
         {/* Animated bar that grows from bottom on hover - ONLY if count > 0 */}
         {shouldShowBar && (
           <div 
             className={`funnel-bar ${color}`}
             style={{ 
-              '--target-height': `${targetHeight}%`
+              '--target-height': `${targetHeight}%`,
+              bottom: 0,
+              margin: 0,
+              padding: 0
             }}
           />
         )}
@@ -230,10 +233,10 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         
         /* Grow up animation for funnel bars - TRIGGERS ON HOVER */
         @keyframes grow-up {
-          from {
+          0% {
             height: 0%;
           }
-          to {
+          100% {
             height: var(--target-height);
           }
         }
@@ -243,18 +246,19 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
           height: var(--target-height);
           opacity: 1;
           position: absolute;
-          bottom: 0;
+          bottom: 0 !important;  /* Force stick to bottom */
           left: 0;
           right: 0;
-          margin: 0;
-          padding: 0;
+          margin: 0 !important;
+          padding: 0 !important;
           border-radius: 0 0 calc(0.375rem - 1px) calc(0.375rem - 1px);
           transition: all 0.3s ease;
         }
         
-        /* On hover: animate from 0 to target height */
+        /* On hover: animate from 0 to target height, staying at bottom */
         .funnel-card:hover .funnel-bar {
-          animation: grow-up 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          animation: grow-up 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+          animation-fill-mode: both;
         }
         
         /* Add a shine effect when hovering */
@@ -275,7 +279,7 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
           width: 50%;
           height: 100%;
           background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
-          animation: shine 1.5s ease-in-out infinite;
+          animation: shine 1.5s ease-in-out 0.2s infinite;
         }
         
         /* Ticker fade animation */
