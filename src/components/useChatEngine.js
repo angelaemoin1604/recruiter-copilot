@@ -1,9 +1,9 @@
-// useChatEngine.js - FIXED VERSION - Removed all random suggestions
+// useChatEngine.js - PROPER FIX - Keep autofill, but make text match everywhere
 import { useState, useCallback } from "react";
 import { processMessage, resolveInterviewer, checkChosenInterviewer } from "../resolution.js";
 import * as DB from "../db.js";
 
-// Safe toast helper - works whether toast is an object {success,error} or a function
+// Safe toast helper
 function safeToast(toast, type, msg) {
   try {
     if (!toast) return;
@@ -12,25 +12,93 @@ function safeToast(toast, type, msg) {
   } catch (e) { console.warn("toast error:", e); }
 }
 
-// FIXED: Simple hello message without random suggestions
+// VERIFIED candidates+jobs from database
+const SUGGESTIONS = [
+  { candidate: "Anjali Sharma", job: "Application Developer II", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Telephonic", topic: "Java Fundamentals" },
+  { candidate: "Anjali Sharma", job: "Application Developer II", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Video", topic: "OOP Concepts" },
+  { candidate: "Anjali Sharma", job: "Frontend Engineer", round: "Shortlisted", interviewer: "Vikram Singh", mode: "Video", topic: "React & TypeScript" },
+  { candidate: "Rohan Gupta", job: "Application Developer II", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Telephonic", topic: "Java Coding" },
+  { candidate: "Rohan Gupta", job: "Application Developer II", round: "Interview 2", interviewer: "Aarav Mehta", mode: "Video", topic: "System Design" },
+  { candidate: "Rohan Gupta", job: "Senior Java Developer", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Video", topic: "Java Advanced" },
+  { candidate: "Manish Pandey", job: "Application Developer II", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Video", topic: "Data Structures" },
+  { candidate: "Manish Pandey", job: "Application Developer II", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Telephonic", topic: "Algorithms" },
+  { candidate: "Aditi Desai", job: "Frontend Engineer", round: "Interview 1", interviewer: "Vikram Singh", mode: "Video", topic: "CSS & HTML" },
+  { candidate: "Aditi Desai", job: "Frontend Engineer", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Telephonic", topic: "JavaScript Basics" },
+  { candidate: "Karthik Raman", job: "QA Engineer", round: "Interview 1", interviewer: "Vikram Singh", mode: "Video", topic: "Testing Fundamentals" },
+  { candidate: "Karthik Raman", job: "QA Engineer", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Telephonic", topic: "Automation Testing" },
+  { candidate: "Meera Joshi", job: "HR Business Partner", round: "HR Stage", interviewer: "Rajesh Kumar", mode: "In-person", topic: "HR Policies" },
+  { candidate: "Meera Joshi", job: "HR Business Partner", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Video", topic: "HR Operations" },
+  { candidate: "Anil Kumar", job: "Application Developer II", round: "Interview 1", interviewer: "Neha Kapoor", mode: "Video", topic: "Java & Spring" },
+  { candidate: "Anil Kumar", job: "Application Developer II", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Telephonic", topic: "REST APIs" },
+  { candidate: "Pooja Bhat", job: "Senior Java Developer", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Video", topic: "Backend Architecture" },
+  { candidate: "Pooja Bhat", job: "Senior Java Developer", round: "Interview 1", interviewer: "Rajesh Kumar", mode: "Telephonic", topic: "Microservices" },
+  { candidate: "Sandeep Roy", job: "Frontend Engineer", round: "Interview 1", interviewer: "Vikram Singh", mode: "Video", topic: "JavaScript & React" },
+  { candidate: "Sandeep Roy", job: "Frontend Engineer", round: "Interview 1", interviewer: "Aarav Mehta", mode: "Telephonic", topic: "Frontend Frameworks" },
+];
+
+let usedIdx = new Set();
+function nextSuggestion() {
+  if (usedIdx.size >= SUGGESTIONS.length) usedIdx = new Set();
+  let idx;
+  do { idx = Math.floor(Math.random() * SUGGESTIONS.length); }
+  while (usedIdx.has(idx));
+  usedIdx.add(idx);
+  return SUGGESTIONS[idx];
+}
+
+const TIMES = ["9-10 AM", "10-11 AM", "11 AM-12 PM", "2-3 PM", "3-4 PM", "4-5 PM"];
+
+function futureDate(daysAhead) {
+  const d = new Date();
+  d.setDate(d.getDate() + daysAhead);
+  const day = d.getDate();
+  let suffix = "th";
+  if (day % 10 === 1 && day !== 11) suffix = "st";
+  else if (day % 10 === 2 && day !== 12) suffix = "nd";
+  else if (day % 10 === 3 && day !== 13) suffix = "rd";
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  return `${day}${suffix} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function buildSuggestionText(s, daysAhead, time) {
+  const date = futureDate(daysAhead);
+  return `Schedule ${s.round} for ${s.candidate}, ${s.job}, ${date}, ${time}, ${s.mode}, with ${s.interviewer}, topic ${s.topic}`;
+}
+
+function formatDateDisplay(dateStr) {
+  if (!dateStr) return dateStr;
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const [year, month, day] = parts;
+  const d = parseInt(day);
+  let suffix = "th";
+  if (d % 10 === 1 && d !== 11) suffix = "st";
+  else if (d % 10 === 2 && d !== 12) suffix = "nd";
+  else if (d % 10 === 3 && d !== 13) suffix = "rd";
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  return `${d}${suffix} ${months[parseInt(month) - 1]} ${year}`;
+}
+
+// FIX: Generate hello message with suggestion ONCE, so text and autofill match
 function makeHelloMsg() {
+  const s = nextSuggestion();
+  const daysAhead = 2 + Math.floor(Math.random() * 5);
+  const time = TIMES[Math.floor(Math.random() * TIMES.length)];
+  const suggestionText = buildSuggestionText(s, daysAhead, time);
+  
   return {
     id: 1,
     role: "assistant",
     kind: "text",
-    content: `Hi! I'm Recruiter Copilot.\n\nTell me what to schedule. Try:\n\n"Schedule Interview 1 for Anjali Sharma, Application Developer II, 13th May 2026, 10-11 AM, Video, with Neha Kapoor, topic OOP Concepts"`
+    // FIX: Use the SAME suggestionText in content so they match
+    content: `Hi! I'm Recruiter Copilot.\n\nTell me what to schedule. Try:\n"${suggestionText}"`,
+    suggestionText // Pass this so autofill button gets the same text
   };
 }
 
-const scheduledCombinations = new Set();
-function combinationKey(msg) {
-  return [
-    msg.candidate?.candidate?.rh_id,
-    msg.interviewer?.employee_id,
-    msg.slots?.round_name,
-    msg.slots?.date,
-    msg.slots?.time?.start
-  ].join("|");
+const scheduledKeys = new Set();
+function scheduleKey(msg) {
+  return `${msg.candidate?.candidate?.rh_id}|${msg.interviewer?.employee_id}|${msg.slots?.round_name}|${msg.slots?.date}|${msg.slots?.time?.start}`;
 }
 
 export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast }) {
@@ -38,15 +106,19 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(null);
   const [thinking, setThinking] = useState(false);
+  const [currentSuggestion, setCurrentSuggestion] = useState(() => {
+    const hello = makeHelloMsg();
+    return hello.suggestionText;
+  });
 
-  const addMsg = useCallback((m) => {
-    setMessages(prev => [...prev, { ...m, id: Date.now() + Math.random() }]);
-  }, []);
+  const addMsg = useCallback((m) => setMessages(a => [...a, { ...m, id: Date.now() + Math.random() }]), []);
 
-  const reset = useCallback(() => {
-    setMessages([makeHelloMsg()]);
-    setPending(null);
-    setInput("");
+  const reset = useCallback(() => { 
+    const hello = makeHelloMsg();
+    setMessages([hello]); 
+    setCurrentSuggestion(hello.suggestionText);
+    setPending(null); 
+    setInput(""); 
   }, []);
 
   const send = useCallback(async () => {
@@ -63,16 +135,17 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
       if (result.kind === "confirm") setPending(result);
     } catch (err) {
       console.error("send error:", err);
-      addMsg({ role: "assistant", kind: "text", content: `❌ Error processing request: ${err?.message || "Unknown error"}. Please try again.` });
+      addMsg({ role: "assistant", kind: "text", content: `❌ Error: ${err?.message || "Something went wrong"}. Please try again.` });
     }
   }, [input, snapshot, addMsg]);
 
   const handleIRes = useCallback((iRes, slots, cRes) => {
-    if (!iRes) { addMsg({ role: "assistant", kind: "text", content: "Internal error resolving interviewer." }); return; }
-    if (iRes.status === "interviewer_not_found") { addMsg({ role: "assistant", kind: "text", content: `❌ Couldn't find interviewer "${iRes.ref}". Check spelling in the Employees tab.` }); return; }
+    if (!iRes) { addMsg({ role: "assistant", kind: "text", content: "Internal error." }); return; }
+    if (iRes.status === "interviewer_not_found") { addMsg({ role: "assistant", kind: "text", content: `Couldn't find interviewer "${iRes.ref}". Check the name.` }); return; }
     if (iRes.status === "interviewer_multiple") { addMsg({ role: "assistant", kind: "interviewer_disambig", slots, candidate: cRes, options: iRes.options }); return; }
     if (iRes.status === "not_qualified") { addMsg({ role: "assistant", kind: "not_qualified", slots, candidate: cRes, named: iRes.named, alternatives: iRes.alternatives, round: iRes.round }); return; }
-    if (iRes.status === "no_qualified") { addMsg({ role: "assistant", kind: "text", content: `❌ No certified interviewers for ${slots.round_name}. Go to Employees tab and assign the round to someone.` }); return; }
+    if (iRes.status === "named_not_qualified") { addMsg({ role: "assistant", kind: "text", content: `None of "${slots.interviewer_ref}" are certified for ${iRes.round}.` }); return; }
+    if (iRes.status === "no_qualified") { addMsg({ role: "assistant", kind: "text", content: `No certified interviewers for ${slots.round_name}. Assign the round to someone in Employees tab.` }); return; }
     if (iRes.status === "no_slot") { addMsg({ role: "assistant", kind: "no_slot", slots, candidate: cRes, interviewer: iRes.interviewer, nearby: iRes.nearby || [], alternatives: iRes.alternatives || [] }); return; }
     if (iRes.status === "no_availability") { addMsg({ role: "assistant", kind: "no_availability", slots, candidate: cRes, top3: iRes.top3 }); return; }
     const confirmMsg = { role: "assistant", kind: "confirm", slots, candidate: cRes, interviewer: iRes.interviewer, slot: iRes.slot, auto_picked: iRes.status === "auto_picked", score: iRes.score };
@@ -109,7 +182,6 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
     addMsg(c); setPending(c);
   }, [addMsg]);
 
-  // A) Add confirmed timeslot directly — green button
   const addConfirmedSlot = useCallback(async (emp, slots) => {
     try {
       await DB.add("interviewer_availability", {
@@ -122,16 +194,15 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
         added_by_self: false
       });
       await refreshSnapshot();
-      addMsg({ role: "assistant", kind: "text", content: `✅ Confirmed timeslot added for ${emp.name} on ${slots.date} ${slots.time.start}–${slots.time.end}.\n\nNow try scheduling again — the slot is available!` });
+      addMsg({ role: "assistant", kind: "text", content: `✅ Confirmed timeslot added for ${emp.name} on ${formatDateDisplay(slots.date)}, ${slots.time.start}–${slots.time.end}.` });
       safeToast(toast, "success", `✅ Timeslot confirmed for ${emp.name}`);
     } catch (err) {
       console.error("addConfirmedSlot error:", err);
-      addMsg({ role: "assistant", kind: "text", content: `❌ Failed to add timeslot: ${err?.message || "Unknown error"}. Please try again.` });
-      safeToast(toast, "error", "Failed to add timeslot");
+      addMsg({ role: "assistant", kind: "text", content: "Something went wrong. Please try again later." });
+      safeToast(toast, "error", "Something went wrong. Please try again later.");
     }
   }, [currentUser, refreshSnapshot, addMsg, toast]);
 
-  // B) Raise pending timeslot request — yellow button
   const raiseSlotRequest = useCallback(async (emp, slots) => {
     try {
       await DB.add("time_slot_request", {
@@ -145,12 +216,12 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
         created_at: new Date().toISOString()
       });
       await refreshSnapshot();
-      addMsg({ role: "assistant", kind: "text", content: `⏳ Pending request sent to ${emp.name} for ${slots.date} ${slots.time.start}–${slots.time.end}.\n\nOnce they confirm in the Employees tab, come back here to schedule.` });
+      addMsg({ role: "assistant", kind: "text", content: `⏳ Pending request sent to ${emp.name} for ${formatDateDisplay(slots.date)}, ${slots.time.start}–${slots.time.end}.` });
       safeToast(toast, "success", `Pending request sent to ${emp.name}`);
     } catch (err) {
       console.error("raiseSlotRequest error:", err);
-      addMsg({ role: "assistant", kind: "text", content: `❌ Failed to send request: ${err?.message || "Unknown error"}. Please try again.` });
-      safeToast(toast, "error", "Failed to send request");
+      addMsg({ role: "assistant", kind: "text", content: "Something went wrong. Please try again later." });
+      safeToast(toast, "error", "Something went wrong. Please try again later.");
     }
   }, [currentUser, refreshSnapshot, addMsg, toast]);
 
@@ -169,17 +240,15 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
   }, [addMsg]);
 
   const confirmSchedule = useCallback(async (msg) => {
-    const key = combinationKey(msg);
-    if (scheduledCombinations.has(key)) {
-      addMsg({ role: "assistant", kind: "text", content: "⚠️ This exact interview is already scheduled. Please change the date, time, or interviewer." });
+    const key = scheduleKey(msg);
+    if (scheduledKeys.has(key)) {
+      addMsg({ role: "assistant", kind: "text", content: "⚠️ This exact combination is already scheduled. Please use a different date, time, or interviewer." });
       safeToast(toast, "error", "Already scheduled — change date/time/interviewer");
       return;
     }
     try {
-      const round = snapshot.interview_round.find(r =>
-        r.job_id === msg.candidate.job.job_id && r.round_name === msg.slots.round_name
-      );
-      const id = await DB.add("interviews", {
+      const round = snapshot.interview_round.find(r => r.job_id === msg.candidate.job.job_id && r.round_name === msg.slots.round_name);
+      const result = await DB.add("interviews", {
         rh_id: msg.candidate.candidate.rh_id,
         job_id: msg.candidate.job.job_id,
         round_name: msg.slots.round_name,
@@ -194,48 +263,49 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
         scheduled_by: currentUser.id,
         created_at: new Date().toISOString()
       });
-
-      if (id === null || id === undefined) {
-        throw new Error("No ID returned from Supabase. Check RLS policies allow INSERT on interviews table.");
-      }
-
-      await DB.add("interview_history", {
-        interview_id: id,
-        action: "scheduled",
-        at: new Date().toISOString(),
-        by_user: currentUser.id
-      });
-
-      scheduledCombinations.add(key);
+      
+      const id = result?.id || result;
+      if (!id && id !== 0) throw new Error("No ID returned — check Supabase RLS policies allow inserts");
+      
+      await DB.add("interview_history", { interview_id: id, action: "scheduled", at: new Date().toISOString(), by_user: currentUser.id });
+      scheduledKeys.add(key);
       await refreshSnapshot();
       setPending(null);
-
-      // FIXED: No more random "next interview" suggestion
+      
+      // FIX: Generate next suggestion with SAME format
+      const next = nextSuggestion();
+      const nextDate = futureDate(3 + Math.floor(Math.random() * 4));
+      const nextTime = TIMES[Math.floor(Math.random() * TIMES.length)];
+      const nextSuggestionText = buildSuggestionText(next, 0, nextTime).replace(futureDate(0), nextDate);
+      
+      // Add success message
       addMsg({
         role: "assistant",
         kind: "success",
         interview_id: id,
-        content: `✅ ${msg.candidate.candidate.name} with ${msg.interviewer.name}\n${msg.slots.date} · ${msg.slots.time.start}–${msg.slots.time.end} · ${msg.slots.mode || "Video"}\n\nInterview scheduled successfully! What else should I schedule?`
+        content: `${msg.candidate.candidate.name} with ${msg.interviewer.name} on ${formatDateDisplay(msg.slots.date)}, ${msg.slots.time.start}–${msg.slots.time.end}.`
       });
+      
+      // FIX: Add next suggestion with MATCHING text
+      addMsg({
+        role: "assistant",
+        kind: "text",
+        // Use the SAME suggestionText in content
+        content: `Next to schedule? Try:\n"${nextSuggestionText}"`,
+        suggestionText: nextSuggestionText // Pass this for autofill
+      });
+      
+      setCurrentSuggestion(nextSuggestionText);
+      
       safeToast(toast, "success", "✅ Interview scheduled!");
     } catch (err) {
       console.error("confirmSchedule error:", err);
-      addMsg({ role: "assistant", kind: "text", content: `❌ Failed to schedule: ${err?.message || "Unknown error"}.\n\nPlease try again or check your Supabase connection.` });
-      safeToast(toast, "error", `Failed: ${err?.message || "Unknown error"}`);
+      addMsg({ role: "assistant", kind: "text", content: `❌ Error: ${err?.message || "Something went wrong. Please try again later."}` });
+      safeToast(toast, "error", `Error: ${err?.message || "Something went wrong"}`);
     }
   }, [snapshot, currentUser, refreshSnapshot, addMsg, toast]);
 
-  const cancelConfirm = useCallback(() => {
-    setPending(null);
-    addMsg({ role: "assistant", kind: "text", content: "Cancelled. What else should I schedule?" });
-  }, [addMsg]);
+  const cancelConfirm = useCallback(() => { setPending(null); addMsg({ role: "assistant", kind: "text", content: "Cancelled. What should I schedule instead?" }); }, [addMsg]);
 
-  return {
-    messages, input, setInput, thinking, pending,
-    send, reset,
-    selectCandidate, selectInterviewer, selectAlternative,
-    chooseNearbySlot, raiseSlotRequest, addConfirmedSlot,
-    acceptWrongRound, declineWrongRound,
-    confirmSchedule, cancelConfirm
-  };
+  return { messages, input, setInput, thinking, pending, currentSuggestion, send, reset, selectCandidate, selectInterviewer, selectAlternative, chooseNearbySlot, raiseSlotRequest, addConfirmedSlot, acceptWrongRound, declineWrongRound, confirmSchedule, cancelConfirm };
 }
