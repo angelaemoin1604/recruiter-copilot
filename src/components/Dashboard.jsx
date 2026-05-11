@@ -181,81 +181,18 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
           animation: draw-sparkline 1.8s ease-out forwards;
         }
         
-        /* Hide data dots by default */
+        /* Hide data dots completely - no dots at all */
         .data-dot {
-          opacity: 0;
-          transform: scale(0);
+          display: none !important;
         }
         
-        /* Animate dots appearing along the line */
-        @keyframes fade-in-dot {
-          0% {
-            opacity: 0;
-            transform: scale(0);
-          }
-          50% {
-            transform: scale(1.3);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        
-        .stat-card:hover .data-dot {
-          animation: fade-in-dot 0.4s ease-out forwards;
-        }
-        
-        .stat-card:hover .data-dot:nth-child(1) { animation-delay: 0.2s; }
-        .stat-card:hover .data-dot:nth-child(2) { animation-delay: 0.25s; }
-        .stat-card:hover .data-dot:nth-child(3) { animation-delay: 0.5s; }
-        .stat-card:hover .data-dot:nth-child(4) { animation-delay: 0.75s; }
-        .stat-card:hover .data-dot:nth-child(5) { animation-delay: 1.0s; }
-        .stat-card:hover .data-dot:nth-child(6) { animation-delay: 1.25s; }
-        .stat-card:hover .data-dot:nth-child(7) { animation-delay: 1.5s; }
-        .stat-card:hover .data-dot:nth-child(8) { animation-delay: 1.75s; }
-        
-        /* Hide pulse elements by default */
+        /* Hide pulse elements completely - no pulsing */
         .pulse-dot {
-          opacity: 0;
+          display: none !important;
         }
         
         .pulse-ring {
-          opacity: 0;
-        }
-        
-        /* Pulse the final dot */
-        @keyframes pulse-final-dot {
-          0%, 100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: scale(1.5);
-            opacity: 0.7;
-          }
-        }
-        
-        .stat-card:hover .pulse-dot {
-          animation: fade-in-dot 0.3s ease-out 1.8s forwards,
-                     pulse-final-dot 0.8s ease-in-out 2.1s 3;
-        }
-        
-        /* Pulse ring expands from final dot */
-        @keyframes pulse-ring {
-          0% {
-            transform: scale(1);
-            opacity: 0.6;
-          }
-          100% {
-            transform: scale(2.5);
-            opacity: 0;
-          }
-        }
-        
-        .stat-card:hover .pulse-ring {
-          animation: fade-in-dot 0.2s ease-out 2.1s forwards,
-                     pulse-ring 1.2s ease-out 2.3s 3;
+          display: none !important;
         }
         
         /* Grow up animation for funnel bars - TRIGGERS ON HOVER */
