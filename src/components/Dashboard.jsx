@@ -162,24 +162,23 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
       const style = document.createElement('style');
       style.id = styleId;
       style.textContent = `
-        /* Sparkline drawing animation - DRAWS PROGRESSIVELY FROM START TO END */
+        /* Sparkline drawing animation - DRAWS CLEANLY FROM START TO END */
         @keyframes draw-sparkline {
-          from {
-            stroke-dashoffset: 200;
-          }
           to {
             stroke-dashoffset: 0;
           }
         }
         
         .sparkline-path {
-          /* Line is HIDDEN by default - only appears on hover */
+          /* Line is HIDDEN by default */
           stroke-dashoffset: 200;
+          stroke-dasharray: 200;
         }
         
-        /* On hover: animate line drawing from start to end */
+        /* On hover: draw line cleanly from start to end */
         .stat-card:hover .sparkline-path {
-          animation: draw-sparkline 2s ease-out forwards;
+          stroke-dashoffset: 0;
+          animation: draw-sparkline 1.8s ease-out forwards;
         }
         
         /* Hide data dots by default */
@@ -208,12 +207,13 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         }
         
         .stat-card:hover .data-dot:nth-child(1) { animation-delay: 0.2s; }
-        .stat-card:hover .data-dot:nth-child(2) { animation-delay: 0.4s; }
-        .stat-card:hover .data-dot:nth-child(3) { animation-delay: 0.6s; }
-        .stat-card:hover .data-dot:nth-child(4) { animation-delay: 0.8s; }
+        .stat-card:hover .data-dot:nth-child(2) { animation-delay: 0.25s; }
+        .stat-card:hover .data-dot:nth-child(3) { animation-delay: 0.5s; }
+        .stat-card:hover .data-dot:nth-child(4) { animation-delay: 0.75s; }
         .stat-card:hover .data-dot:nth-child(5) { animation-delay: 1.0s; }
-        .stat-card:hover .data-dot:nth-child(6) { animation-delay: 1.2s; }
-        .stat-card:hover .data-dot:nth-child(7) { animation-delay: 1.4s; }
+        .stat-card:hover .data-dot:nth-child(6) { animation-delay: 1.25s; }
+        .stat-card:hover .data-dot:nth-child(7) { animation-delay: 1.5s; }
+        .stat-card:hover .data-dot:nth-child(8) { animation-delay: 1.75s; }
         
         /* Hide pulse elements by default */
         .pulse-dot {
@@ -237,8 +237,8 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         }
         
         .stat-card:hover .pulse-dot {
-          animation: fade-in-dot 0.3s ease-out 2.0s forwards,
-                     pulse-final-dot 1s ease-in-out 2.3s infinite;
+          animation: fade-in-dot 0.3s ease-out 1.8s forwards,
+                     pulse-final-dot 0.8s ease-in-out 2.1s 3;
         }
         
         /* Pulse ring expands from final dot */
@@ -254,8 +254,8 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         }
         
         .stat-card:hover .pulse-ring {
-          animation: fade-in-dot 0.2s ease-out 2.3s forwards,
-                     pulse-ring 1.5s ease-out 2.5s infinite;
+          animation: fade-in-dot 0.2s ease-out 2.1s forwards,
+                     pulse-ring 1.2s ease-out 2.3s 3;
         }
         
         /* Grow up animation for funnel bars - TRIGGERS ON HOVER */
