@@ -179,8 +179,10 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
           animation: draw-sparkline 1.8s ease-out forwards;
         }
         
-        /* Also trigger on hover for re-animation */
+        /* Re-trigger animation on hover - reset and replay */
         .stat-card:hover .sparkline-path {
+          stroke-dashoffset: 200;
+          animation: none;
           animation: draw-sparkline 1.8s ease-out forwards;
         }
         
