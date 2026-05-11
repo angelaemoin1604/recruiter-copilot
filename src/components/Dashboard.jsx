@@ -29,7 +29,7 @@ function CountUp({ to, duration = 1200 }) {
   return <>{n}</>;
 }
 
-// Sparkline with animation
+// Sparkline with hover animation
 function Sparkline({ values = [], color = "#3b82f6" }) {
   if (values.length < 2) return null;
   const w = 80, h = 24;
@@ -47,34 +47,32 @@ function Sparkline({ values = [], color = "#3b82f6" }) {
   
   return (
     <svg width={w} height={h} className="overflow-visible">
-      {/* Animated line */}
+      {/* Animated line - animates on parent hover */}
       <polyline 
         points={pts} 
         fill="none" 
         stroke={color} 
-        strokeWidth="2" 
+        strokeWidth="2.5" 
         strokeLinecap="round" 
         strokeLinejoin="round" 
         className="animate-draw-line" 
       />
-      {/* Pulsing dot at the end */}
+      {/* Main dot at endpoint - pulses on hover */}
       <circle 
         cx={lastX} 
         cy={lastY} 
         r="2.5" 
         fill={color}
-        className="animate-pulse"
+        className="pulse-dot"
       />
-      {/* Outer pulsing ring */}
+      {/* Outer pulsing ring - appears on hover */}
       <circle 
         cx={lastX} 
         cy={lastY} 
         r="4" 
-        fill="none" 
-        stroke={color} 
-        strokeWidth="1"
+        fill={color} 
         opacity="0.4"
-        className="animate-pulse-ring"
+        className="pulse-ring"
       />
     </svg>
   );
@@ -110,7 +108,7 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
       const style = document.createElement('style');
       style.id = styleId;
       style.textContent = `
-        /* Sparkline drawing animation */
+        /* Sparkline drawing animation - TRIGGERS ON HOVER */
         @keyframes draw-line {
           from {
             stroke-dashoffset: 200;
@@ -123,7 +121,44 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         .animate-draw-line {
           stroke-dasharray: 200;
           stroke-dashoffset: 200;
+          transition: stroke-dashoffset 0.1s;
+        }
+        
+        /* Trigger animation on card hover */
+        .stat-card:hover .animate-draw-line {
           animation: draw-line 1.5s ease-out forwards;
+        }
+        
+        /* Also animate the pulsing dot on hover */
+        @keyframes pulse-dot {
+          0%, 100% {
+            r: 2.5;
+            opacity: 1;
+          }
+          50% {
+            r: 4;
+            opacity: 0.7;
+          }
+        }
+        
+        .stat-card:hover .pulse-dot {
+          animation: pulse-dot 1s ease-in-out infinite;
+        }
+        
+        /* Pulse ring on hover */
+        @keyframes pulse-ring {
+          0% {
+            opacity: 0.7;
+            r: 4;
+          }
+          100% {
+            opacity: 0;
+            r: 8;
+          }
+        }
+        
+        .stat-card:hover .pulse-ring {
+          animation: pulse-ring 1.5s ease-out infinite;
         }
         
         /* Grow up animation for funnel bars */
@@ -165,23 +200,6 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         
         .animate-ticker-fade {
           animation: ticker-fade 4.5s ease-in-out forwards;
-        }
-        
-        /* Pulse animation for live indicator */
-        @keyframes pulse-ring {
-          0% {
-            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-          }
-          70% {
-            box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
-          }
-          100% {
-            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-          }
-        }
-        
-        .animate-pulse-ring {
-          animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
       `;
       document.head.appendChild(style);
@@ -384,7 +402,7 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
               key={s.label}
               onClick={() => onSwitchTab(s.tab)}
               title={s.tooltip}
-              className="bg-white border-2 border-slate-200 rounded-xl p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-blue-300 transition group text-left w-full cursor-pointer"
+              className="stat-card bg-white border-2 border-slate-200 rounded-xl p-4 hover:shadow-lg hover:-translate-y-0.5 hover:border-blue-300 transition group text-left w-full cursor-pointer"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className={`w-9 h-9 rounded-lg ${colorClass.bg} flex items-center justify-center group-hover:scale-110 transition`}>
