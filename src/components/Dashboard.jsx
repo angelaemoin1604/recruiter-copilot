@@ -152,22 +152,29 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
       style.textContent = `
         /* Sparkline drawing animation - DRAWS FROM START TO END FOLLOWING DATA */
         @keyframes draw-line {
-          from {
+          0% {
             stroke-dashoffset: 1000;
           }
-          to {
+          100% {
             stroke-dashoffset: 0;
           }
         }
         
         .animate-draw-line {
           stroke-dasharray: 1000;
-          stroke-dashoffset: 1000;
+          stroke-dashoffset: 0; /* Line is visible by default */
         }
         
         /* Trigger animation on card hover - draws line progressively */
         .stat-card:hover .animate-draw-line {
-          animation: draw-line 2s ease-in-out forwards;
+          stroke-dashoffset: 1000; /* Reset to start */
+          animation: draw-line 2s ease-out forwards;
+        }
+        
+        /* Hide data dots by default */
+        .data-dot {
+          opacity: 0;
+          transform: scale(0);
         }
         
         /* Animate dots appearing along the line */
@@ -197,6 +204,15 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         .stat-card:hover .data-dot:nth-child(6) { animation-delay: 1.2s; }
         .stat-card:hover .data-dot:nth-child(7) { animation-delay: 1.4s; }
         
+        /* Hide pulse elements by default */
+        .pulse-dot {
+          opacity: 0;
+        }
+        
+        .pulse-ring {
+          opacity: 0;
+        }
+        
         /* Pulse the final dot */
         @keyframes pulse-final-dot {
           0%, 100% {
@@ -210,8 +226,8 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         }
         
         .stat-card:hover .pulse-dot {
-          animation: pulse-final-dot 1s ease-in-out infinite;
-          animation-delay: 1.6s;
+          animation: fade-in-dot 0.3s ease-out 2.0s forwards,
+                     pulse-final-dot 1s ease-in-out 2.3s infinite;
         }
         
         /* Pulse ring expands from final dot */
@@ -227,8 +243,8 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
         }
         
         .stat-card:hover .pulse-ring {
-          animation: pulse-ring 1.5s ease-out infinite;
-          animation-delay: 1.8s;
+          animation: fade-in-dot 0.2s ease-out 2.3s forwards,
+                     pulse-ring 1.5s ease-out 2.5s infinite;
         }
         
         /* Grow up animation for funnel bars - TRIGGERS ON HOVER */
