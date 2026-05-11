@@ -149,7 +149,7 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
                   {[
                     { label: "Skills", items: empSkills, adding: addingSkill, setAdding: setAddingSkill, onAdd: addSkill, onRemove: (s) => setConfirmDel({ type: "skill", item: s }), color: "blue", options: ["Java","Python","JavaScript","React","Spring Boot","Microservices","System Design","Node.js","MongoDB","MySQL","Selenium","Test Automation","CSS","HTML","Leadership","Java J2EE"].filter(s => !empSkills.includes(s)) },
                     { label: "Rounds", items: empRounds, adding: addingRound, setAdding: setAddingRound, onAdd: addRound, onRemove: (r) => setConfirmDel({ type: "round", item: r }), color: "indigo", options: ["Interview 1","Interview 2","Client","HR Stage"].filter(r => !empRounds.includes(r)) },
-                    { label: "Grades", items: empGrades, adding: addingGrade, setAdding: setAddingGrade, onAdd: addGrade, onRemove: (g) => setConfirmDel({ type: "grade", item: g }), color: "purple", options: ["Grade 3","Grade 4","Grade 5","Grade 6"].filter(g => !empGrades.includes(g)) }
+                    { label: "Grades", items: empGrades, adding: addingGrade, setAdding: setAddingGrade, onAdd: addGrade, onRemove: (g) => setConfirmDel({ type: "grade", item: g }), color: "purple", options: ["Grade 1","Grade 2","Grade 3","Grade 4","Grade 5","Grade 6"].filter(g => !empGrades.includes(g)) }
                   ].map(({ label, items, adding, setAdding, onAdd, onRemove, color, options }) => (
                     <div key={label} className="bg-white border-2 border-slate-300 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
