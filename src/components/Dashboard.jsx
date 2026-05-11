@@ -103,15 +103,23 @@ function Sparkline({ values = [], color = "#3b82f6" }) {
   );
 }
 
-// Funnel segment
+// Funnel segment with hover animation
 function FunnelStage({ label, count, total, color, onClick }) {
   const pct = total > 0 ? (count / total) * 100 : 0;
   return (
-    <button onClick={onClick} className="flex-1 group min-w-0">
+    <button onClick={onClick} className="flex-1 group min-w-0 funnel-card">
       <div className="text-[10px] uppercase tracking-wider text-slate-700 font-bold mb-1 truncate">{label}</div>
-      <div className="relative h-16 rounded-md overflow-hidden border border-slate-300 bg-slate-50 group-hover:shadow-md transition">
-        <div className={`absolute bottom-0 left-0 right-0 ${color} animate-grow-up`} style={{ height: `${Math.max(pct, 8)}%` }} />
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
+      <div className="relative h-16 rounded-md overflow-hidden border border-slate-300 bg-slate-50 group-hover:shadow-lg group-hover:border-blue-300 transition">
+        {/* Animated bar that grows from bottom on hover */}
+        <div 
+          className={`absolute bottom-0 left-0 right-0 ${color} funnel-bar`}
+          style={{ 
+            '--target-height': `${Math.max(pct, 8)}%`,
+            backgroundImage: `linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent)`
+          }}
+        />
+        {/* Content stays in center */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <div className="text-2xl font-black text-slate-900"><CountUp to={count} /></div>
           <div className="text-[10px] text-slate-700 font-medium">{Math.round(pct)}%</div>
         </div>
@@ -214,21 +222,43 @@ export default function Dashboard({ snapshot, currentUser, onOpenDock, onSwitchT
           animation-delay: 1.8s;
         }
         
-        /* Grow up animation for funnel bars */
+        /* Grow up animation for funnel bars - TRIGGERS ON HOVER */
         @keyframes grow-up {
           from {
-            transform: scaleY(0);
+            height: 0%;
             opacity: 0;
           }
           to {
-            transform: scaleY(1);
+            height: var(--target-height);
             opacity: 1;
           }
         }
         
-        .animate-grow-up {
-          transform-origin: bottom;
-          animation: grow-up 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        .funnel-bar {
+          height: 0%;
+          opacity: 0;
+          transition: height 0.1s, opacity 0.1s;
+        }
+        
+        /* Trigger animation on funnel card hover */
+        .funnel-card:hover .funnel-bar {
+          animation: grow-up 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        
+        /* Add a shine effect when hovering */
+        @keyframes shine {
+          0% {
+            background-position: -100% 0;
+          }
+          100% {
+            background-position: 200% 0;
+          }
+        }
+        
+        .funnel-card:hover .funnel-bar {
+          background-size: 200% 100%;
+          animation: grow-up 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+                     shine 1.5s ease-in-out infinite;
         }
         
         /* Ticker fade animation */
