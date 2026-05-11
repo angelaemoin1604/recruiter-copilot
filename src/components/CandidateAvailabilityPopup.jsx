@@ -188,17 +188,6 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
     return selectedSlots.some(s => s.date === dateStr);
   };
 
-  // Global mouseup to stop dragging
-  useEffect(() => {
-    const handleGlobalMouseUp = () => {
-      setIsDragging(false);
-      setDragStart(null);
-    };
-    
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
-  }, []);
-
   const handleSend = () => {
     if (selectedSlots.length === 0) {
       alert("Please select at least one time slot");
