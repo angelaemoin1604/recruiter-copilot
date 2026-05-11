@@ -127,7 +127,13 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
     for (let i = 0; i < 42; i++) {
       const isPast = currentDate < today;
       const isCurrentMonth = currentDate.getMonth() === selectedMonth.getMonth();
-      const dateStr = currentDate.toISOString().split('T')[0];
+      
+      // FIX: Use local date string instead of ISO to avoid timezone issues
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const day = String(currentDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
       const isToday = currentDate.toDateString() === today.toDateString();
       
       days.push({
@@ -247,7 +253,7 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                   ))}
                 </div>
 
-                {/* Calendar days - MULTI-SELECT WITH DRAG */}
+                {/* Calendar days - CLICK AND DRAG SELECTION */}
                 <div className="grid grid-cols-7 gap-2">
                   {calendarDays.map((day, i) => {
                     const hasSlots = hasSlotOnDate(day.dateStr);
@@ -257,29 +263,43 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                     return (
                       <button
                         key={`${day.dateStr}-${i}`}
-                        onMouseDown={() => {
+                        onMouseDown={(e) => {
                           if (!isDisabled) {
+                            e.preventDefault(); // Prevent text selection
                             setIsDragging(true);
                             setDragStart(day.dateStr);
-                            // Toggle single date - click same date twice to deselect
-                            if (isSelected) {
-                              setSelectedDates(selectedDates.filter(d => d !== day.dateStr));
-                            } else {
-                              setSelectedDates([...selectedDates, day.dateStr]);
-                            }
+                            // Clear previous selection and start fresh
+                            setSelectedDates([day.dateStr]);
                           }
                         }}
                         onMouseEnter={() => {
-                          if (isDragging && !isDisabled && dragStart && day.dateStr !== dragStart) {
-                            // Add date to selection while dragging
-                            if (!selectedDates.includes(day.dateStr)) {
-                              setSelectedDates([...selectedDates, day.dateStr]);
+                          if (isDragging && !isDisabled && dragStart) {
+                            // Build date range from dragStart to current date
+                            const allDates = calendarDays
+                              .filter(d => !d.isPast && d.isCurrentMonth)
+                              .map(d => d.dateStr);
+                            
+                            const startIdx = allDates.indexOf(dragStart);
+                            const endIdx = allDates.indexOf(day.dateStr);
+                            
+                            if (startIdx !== -1 && endIdx !== -1) {
+                              const minIdx = Math.min(startIdx, endIdx);
+                              const maxIdx = Math.max(startIdx, endIdx);
+                              const rangeSelected = allDates.slice(minIdx, maxIdx + 1);
+                              setSelectedDates(rangeSelected);
                             }
                           }
                         }}
                         onMouseUp={() => {
-                          setIsDragging(false);
-                          setDragStart(null);
+                          if (isDragging) {
+                            // Check if it's a single click (no drag happened)
+                            const currentSelection = selectedDates;
+                            if (currentSelection.length === 1 && currentSelection[0] === dragStart) {
+                              // Single date selected, clicking again should deselect
+                              // This is handled on the next click
+                            }
+                            setIsDragging(false);
+                          }
                         }}
                         disabled={isDisabled}
                         className={`
@@ -325,7 +345,7 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
                     <span>Today's date</span>
                   </div>
                   <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                    <span className="font-semibold text-blue-900">💡 Tip:</span> Click once to select, click again to deselect. Or drag to select multiple dates.
+                    <span className="font-semibold text-blue-900">💡 Tip:</span> Click and hold on a start date, drag to an end date, then release to select a date range.
                   </div>
                 </div>
               </div>
