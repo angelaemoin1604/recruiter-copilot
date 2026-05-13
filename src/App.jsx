@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 import Login from "./components/Login.jsx";
 import RippleHireReplica from "./components/RippleHireReplica.jsx";
 import RecruiterCopilot from "./components/RecruiterCopilot.jsx";
-import CandidateConfirmAvailability from "./components/CandidateConfirmAvailability.jsx";
+// import CandidateConfirmAvailability from "./components/CandidateConfirmAvailability.jsx";
 import { ToastProvider } from "./components/Toast.jsx";
-import * as DB from "./db.js";
+import * as DB from "./supabase.jsx";  // ✅ FIXED: Changed from "./db.js" to "./supabase.jsx"
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -74,12 +74,14 @@ export default function App() {
           onBack={() => setView("replica")}
         />
       )}
+      {/* Commented out - using standalone HTML page instead
       {view === "confirm-availability" && (
         <CandidateConfirmAvailability 
           availabilityToken={availabilityToken}
           onClose={() => setView("login")}
         />
       )}
+      */}
     </ToastProvider>
   );
 }

@@ -1,7 +1,6 @@
 // CandidateAvailabilityPopup.jsx - WITH START/END TIME DROPDOWNS
 import { useState, useEffect } from "react";
 import { X, ChevronLeft, ChevronRight, Calendar, Clock, Send, Plus } from "lucide-react";
-import { sendAvailabilityEmail } from "../utils";
 
 // Time Range Selector Component with Start/End dropdowns
 function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange, selectedDates }) {
@@ -194,31 +193,16 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
       alert("Please select at least one time slot");
       return;
     }
-
-    try {
-      // Send availability email to candidate
-      const result = await sendAvailabilityEmail(
-        {
-          id: candidate.candidate_id || candidate.id,
-          name: candidate.name,
-          email: candidate.email,
-          job: candidate.job_title || candidate.job || "Position"
-        },
-        selectedSlots
-      );
-
-      if (result.success) {
-        alert(`✅ Availability request sent to ${candidate.name}!\n\nConfirmation URL:\n${result.confirmationUrl}\n\n(Copy this URL to test the candidate confirmation page)`);
-        onClose();
-      } else {
-        alert(`❌ Failed to send: ${result.error}`);
-      }
-    } catch (error) {
-      console.error('Error sending availability:', error);
-      alert(`❌ Error: ${error.message}`);
-    }
-  };
-
+	try {
+    // Call onSend with just the slots
+    await onSend(selectedSlots);
+    // Parent will handle success/close
+  } catch (error) {
+    console.error('Error sending availability:', error);
+    alert(`❌ Error: ${error.message}`);
+  }
+};
+    
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">

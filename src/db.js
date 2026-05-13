@@ -6,5 +6,6 @@ export {
   snapshot, 
   add, 
   put, 
-  del 
+  del,
+  sendAvailabilityEmail  // ✅ ADDED - This was missing!
 } from './supabase.jsx';

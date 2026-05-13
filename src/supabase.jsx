@@ -1,28 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
-import emailjs from '@emailjs/browser';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// EmailJS Configuration - HARDCODED FOR RELIABILITY
-const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || 'service_x3k41yt';
-const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'template_wkd39cc';
-const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'sTgpTb5NDksjA3krU';
-
-console.log('🔧 EmailJS Configuration:');
-console.log('  Service ID:', EMAILJS_SERVICE_ID);
-console.log('  Template ID:', EMAILJS_TEMPLATE_ID);
-console.log('  Public Key:', EMAILJS_PUBLIC_KEY ? '✅ Present' : '❌ Missing');
-
-// Initialize EmailJS immediately
-try {
-  emailjs.init(EMAILJS_PUBLIC_KEY);
-  console.log('✅ EmailJS initialized successfully');
-} catch (error) {
-  console.error('❌ Failed to initialize EmailJS:', error);
-}
 
 const TABLE_COLUMNS = {
   employees: ['employee_id','name','email','phone','department','location','grade','level','hired_job_title','is_certified_panelist','is_active'],
@@ -39,6 +20,7 @@ const TABLE_COLUMNS = {
   interviewer_availability: ['id','employee_id','slot_date','start_time','end_time','status','added_by','added_by_self'],
   time_slot_request: ['id','employee_id','requested_by','slot_date','start_time','end_time','repeat_pattern','status','created_at'],
   candidate_availability: ['id','rh_id','slot_date','start_time','end_time','status','requested_by','created_at'],
+  availability_requests: ['id','token','candidate_id','candidate_name','candidate_email','job_title','slots','selected_slot','status','created_at','confirmed_at','expires_at']
 };
 
 function sanitize(tableName, record) {
@@ -127,42 +109,51 @@ export async function snapshot() {
   return result;
 }
 
-// BULLETPROOF: Send availability request email using EmailJS
+// ========================================
+// AVAILABILITY REQUEST FUNCTIONS
+// ========================================
+
+function generateUniqueToken() {
+  return `avail_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
 export async function sendAvailabilityEmail(candidate, slots) {
   try {
-    console.log('=' * 50);
-    console.log('📧 SENDING EMAIL VIA EMAILJS');
-    console.log('=' * 50);
-    console.log('Candidate:', candidate);
-    console.log('Slots:', slots);
-
-    // Validate candidate
-    if (!candidate) {
-      throw new Error('❌ Candidate object is null or undefined');
+    console.log('📧 Creating availability request in Supabase...');
+    
+    // Generate token
+    const token = generateUniqueToken();
+    
+    // Calculate expiration (48 hours)
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    
+    // Save to Supabase
+    const { data, error } = await supabase
+      .from('availability_requests')
+      .insert({
+        token,
+        candidate_id: candidate.rh_id,
+        candidate_name: candidate.name,
+        candidate_email: candidate.email,
+        job_title: candidate.current_title || 'Position',
+        slots: slots,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        expires_at: expiresAt
+      })
+      .select();
+    
+    if (error) {
+      console.error('❌ Supabase error:', error);
+      throw error;
     }
-
-    if (!candidate.email) {
-      throw new Error(`❌ Candidate "${candidate.name}" does not have an email address`);
-    }
-
-    if (!candidate.name) {
-      throw new Error('❌ Candidate does not have a name');
-    }
-
-    if (!slots || slots.length === 0) {
-      throw new Error('❌ No slots provided');
-    }
-
-    console.log('✅ Validation passed');
-
-    // Verify EmailJS is initialized
-    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
-      throw new Error('❌ EmailJS configuration is incomplete. Check .env file.');
-    }
-
-    console.log('✅ EmailJS configured');
-
-    // Format slots for email
+    
+    console.log('✅ Saved to Supabase:', data);
+    
+    // Generate confirmation URL
+    const confirmationUrl = `${window.location.origin}/confirm-availability.html?token=${token}`;
+    
+    // Format slots for email (TODO: Actually send email here)
     const slotList = slots.map(s => {
       const date = new Date(s.date + 'T00:00:00').toLocaleDateString('en-US', { 
         weekday: 'long', 
@@ -172,45 +163,29 @@ export async function sendAvailabilityEmail(candidate, slots) {
       });
       return `• ${date} at ${s.display}`;
     }).join('\n');
-
-    console.log('📋 Formatted slots:', slotList);
-
-    // Prepare template parameters
-    const templateParams = {
-      to_email: candidate.email,
-      to_name: candidate.name,
-      slot_list: slotList,
-      from_name: 'RippleHire Recruitment Team'
+    
+    console.log('📧 Email would be sent to:', candidate.email);
+    console.log('🔗 Confirmation URL:', confirmationUrl);
+    console.log('📋 Slots:\n', slotList);
+    
+    // Return success with URL
+    return { 
+      success: true, 
+      confirmationUrl,
+      data 
     };
-
-    console.log('📤 Template parameters:', templateParams);
-
-    // Send via EmailJS
-    console.log('🔄 Calling emailjs.send()...');
-    const response = await emailjs.send(
-      EMAILJS_SERVICE_ID,
-      EMAILJS_TEMPLATE_ID,
-      templateParams
-    );
-
-    console.log('✅ EMAIL SENT SUCCESSFULLY!');
-    console.log('Response:', response);
-    console.log('=' * 50);
-
-    return { success: true, data: response };
-
+    
   } catch (error) {
-    console.error('=' * 50);
-    console.error('❌ ERROR SENDING EMAIL:');
-    console.error('Error name:', error.name);
-    console.error('Error message:', error.message);
-    console.error('Full error:', error);
-    console.error('=' * 50);
-    throw error;
+    console.error('❌ Error:', error);
+    return {
+      success: false,
+      error: error.message
+    };
   }
 }
 
 export async function initDB() {
+  console.log('✅ Using Supabase');
   return Promise.resolve();
 }
 

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm Interview Availability</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50">
+  <div id="app"></div>
+
+  <script type="module">
+    // ⚠️ IMPORTANT: Replace these with your actual Supabase credentials from your .env file
+const SUPABASE_URL = 'https://fbgqqkvufdofbgmtvhmn.supabase.co';    
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiZ3Fxa3Z1ZmRvZmJnbXR2aG1uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDQyNTEsImV4cCI6MjA5Mjg4MDI1MX0.-r4YK-hDnc1tAIYj6HHyYsIuaFl4wjUwHcmO1f0QbcM';
+    
+    const { createClient } = supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    let selectedSlot = null;
+    let submitted = false;
+    let availabilityData = null;
+
+    if (!token) {
+      showError('Invalid or missing token');
+    } else {
+      loadData();
+    }
+
+    async function loadData() {
+      try {
+        console.log('🔍 Loading availability request from Supabase...');
+        
+        // Fetch from Supabase
+        const { data, error } = await supabaseClient
+          .from('availability_requests')
+          .select('*')
+          .eq('token', token)
+          .single();
+        
+        if (error || !data) {
+          console.error('❌ Error loading:', error);
+          showError('Availability request not found or expired');
+          return;
+        }
+        
+        console.log('✅ Loaded from Supabase:', data);
+        availabilityData = data;
+        const slots = splitIntoHours(data.slots);
+        renderPage(data, slots);
+      } catch (error) {
+        console.error('❌ Exception:', error);
+        showError('Failed to load availability request');
+      }
+    }
+
+    function splitIntoHours(slots) {
+      const result = [];
+      slots.forEach(slot => {
+        const start = parseInt(slot.start.split(':')[0]);
+        const end = parseInt(slot.end.split(':')[0]);
+        for (let h = start; h < end; h++) {
+          result.push({
+            date: slot.date,
+            start: `${h.toString().padStart(2,'0')}:00`,
+            end: `${(h+1).toString().padStart(2,'0')}:00`,
+            display: formatTime(h) + ' - ' + formatTime(h+1)
+          });
+        }
+      });
+      return result;
+    }
+
+    function formatTime(h) {
+      if (h < 12) return `${h}:00 AM`;
+      if (h === 12) return '12:00 PM';
+      return `${h-12}:00 PM`;
+    }
+
+    function showError(msg) {
+      document.getElementById('app').innerHTML = `
+        <div class="flex items-center justify-center min-h-screen p-4">
+          <div class="text-center p-8 bg-white rounded-lg shadow-lg max-w-md">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-red-600 mb-2">Error</h1>
+            <p class="text-gray-600">${msg}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPage(data, slots) {
+      const grouped = slots.reduce((g, s) => {
+        if (!g[s.date]) g[s.date] = [];
+        g[s.date].push(s);
+        return g;
+      }, {});
+
+      if (submitted) {
+        document.getElementById('app').innerHTML = `
+          <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center max-w-md w-full">
+              <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <h1 class="text-3xl font-bold text-gray-900 mb-3">Thank You!</h1>
+              <p class="text-gray-600 mb-4">Your availability has been confirmed.</p>
+              <p class="text-sm text-gray-500">You'll receive a calendar invite shortly.</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      let slotsHtml = '';
+      Object.entries(grouped).forEach(([date, dateSlots]) => {
+        const d = new Date(date + 'T00:00:00');
+        const dateStr = d.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'});
+        slotsHtml += `
+          <div class="mb-6">
+            <h3 class="font-bold text-sm text-gray-700 mb-3 flex items-center gap-2">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"/></svg>
+              ${dateStr} <span class="text-gray-500 font-normal">(${dateSlots.length} slots)</span>
+            </h3>
+            <div class="space-y-2">
+              ${dateSlots.map(slot => {
+                const isSelected = selectedSlot && selectedSlot.date === slot.date && selectedSlot.start === slot.start;
+                return `
+                  <button 
+                    onclick="window.selectSlot('${slot.date}', '${slot.start}', '${slot.end}', '${slot.display}')"
+                    class="w-full p-3 rounded-lg border-2 transition text-center ${
+                      isSelected 
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-lg' 
+                        : 'bg-white border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                    }">
+                    <div class="font-bold ${isSelected ? 'text-white' : 'text-blue-700'}">${slot.display}</div>
+                    ${isSelected ? '<div class="text-xs text-white mt-1">✓ Selected</div>' : ''}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      });
+
+      document.getElementById('app').innerHTML = `
+        <div class="max-w-4xl mx-auto p-4 md:p-6 min-h-screen">
+          <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 md:p-8">
+              <h1 class="text-2xl md:text-3xl font-bold mb-2">Confirm Your Interview Availability</h1>
+              <p class="text-blue-100 text-sm md:text-base">Hi ${data.candidate_name}, please select your preferred time slot for ${data.job_title}</p>
+            </div>
+            
+            <div class="p-6 md:p-8">
+              <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                <p class="text-sm text-amber-900 font-medium">
+                  <strong>Note:</strong> Each slot will be of 1 hour.
+                </p>
+              </div>
+
+              ${slotsHtml}
+
+              <button 
+                id="confirmBtn"
+                onclick="window.confirmAvailability()"
+                disabled
+                class="w-full py-4 bg-blue-600 text-white rounded-lg font-bold text-lg hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed mt-6">
+                Confirm My Availability
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      updateConfirmButton();
+    }
+
+    window.selectSlot = function(date, start, end, display) {
+      selectedSlot = { date, start, end, display };
+      loadData();
+    }
+
+    function updateConfirmButton() {
+      const btn = document.getElementById('confirmBtn');
+      if (btn) {
+        btn.disabled = !selectedSlot;
+      }
+    }
+
+    window.confirmAvailability = async function() {
+      if (!selectedSlot) {
+        alert('Please select a time slot');
+        return;
+      }
+
+      try {
+        console.log('💾 Saving confirmation to Supabase...');
+        
+        // Update in Supabase
+        const { data, error } = await supabaseClient
+          .from('availability_requests')
+          .update({
+            selected_slot: selectedSlot,
+            status: 'confirmed',
+            confirmed_at: new Date().toISOString()
+          })
+          .eq('token', token)
+          .select();
+
+        if (error) {
+          console.error('❌ Update error:', error);
+          throw error;
+        }
+
+        console.log('✅ Confirmed in Supabase:', data);
+        submitted = true;
+        loadData();
+      } catch (error) {
+        console.error('❌ Exception:', error);
+        alert('Failed to confirm availability. Please try again.');
+      }
+    }
+  </script>
+</body>
+</html>
