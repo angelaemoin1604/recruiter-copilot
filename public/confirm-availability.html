@@ -5,24 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Confirm Interview Availability</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-50">
   <div id="app"></div>
 
-  <script type="module">
-    // ⚠️ IMPORTANT: Replace these with your actual Supabase credentials from your .env file
-const SUPABASE_URL = 'https://fbgqqkvufdofbgmtvhmn.supabase.co';    
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiZ3Fxa3Z1ZmRvZmJnbXR2aG1uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDQyNTEsImV4cCI6MjA5Mjg4MDI1MX0.-r4YK-hDnc1tAIYj6HHyYsIuaFl4wjUwHcmO1f0QbcM';
-    
-    const { createClient } = supabase;
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+  <script>
+    // Direct Supabase REST API calls - CORRECT KEY FROM .ENV
+    const SUPABASE_URL = 'https://fbgqqkvufdofbgmtvhmn.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiZ3Fxa3Z1ZmRvZmJnbXR2aG1uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDQyNTEsImV4cCI6MjA5Mjg4MDI1MX0.-r4YK-hDnc1tAIYj6HHyYsIuaFl4wjUwHcmO1f0QbcM';
 
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
-    let selectedSlot = null;
+    let selectedSlots = [];
     let submitted = false;
-    let availabilityData = null;
+    let currentData = null;
 
     if (!token) {
       showError('Invalid or missing token');
@@ -30,30 +26,61 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
       loadData();
     }
 
+    async function supabaseQuery(query) {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+      
+      return await response.json();
+    }
+
+    async function supabaseUpdate(table, data, filter) {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+      
+      return await response.json();
+    }
+
     async function loadData() {
+      console.log('🔍 Loading availability request from Supabase...');
+      
       try {
-        console.log('🔍 Loading availability request from Supabase...');
-        
-        // Fetch from Supabase
-        const { data, error } = await supabaseClient
-          .from('availability_requests')
-          .select('*')
-          .eq('token', token)
-          .single();
-        
-        if (error || !data) {
-          console.error('❌ Error loading:', error);
+        const data = await supabaseQuery(`availability_requests?token=eq.${token}&select=*`);
+
+        if (!data || data.length === 0) {
+          console.error('❌ No data found');
           showError('Availability request not found or expired');
           return;
         }
-        
-        console.log('✅ Loaded from Supabase:', data);
-        availabilityData = data;
-        const slots = splitIntoHours(data.slots);
-        renderPage(data, slots);
-      } catch (error) {
-        console.error('❌ Exception:', error);
-        showError('Failed to load availability request');
+
+        console.log('✅ Loaded data:', data[0]);
+        currentData = data[0];
+        const slots = splitIntoHours(data[0].slots);
+        renderPage(data[0], slots);
+      } catch (err) {
+        console.error('❌ Error:', err);
+        showError('Failed to load availability request: ' + err.message);
       }
     }
 
@@ -83,9 +110,9 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
     function showError(msg) {
       document.getElementById('app').innerHTML = `
         <div class="flex items-center justify-center min-h-screen p-4">
-          <div class="text-center p-8 bg-white rounded-lg shadow-lg max-w-md">
+          <div class="text-center p-8 bg-white rounded-lg shadow-lg max-w-md w-full">
             <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
             </div>
@@ -105,15 +132,15 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
       if (submitted) {
         document.getElementById('app').innerHTML = `
-          <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center max-w-md w-full">
+          <div class="flex items-center justify-center min-h-screen p-6">
+            <div class="bg-white rounded-2xl shadow-xl p-12 text-center max-w-md w-full">
               <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
                 </svg>
               </div>
               <h1 class="text-3xl font-bold text-gray-900 mb-3">Thank You!</h1>
-              <p class="text-gray-600 mb-4">Your availability has been confirmed.</p>
+              <p class="text-gray-600 mb-2">Your availability has been confirmed.</p>
               <p class="text-sm text-gray-500">You'll receive a calendar invite shortly.</p>
             </div>
           </div>
@@ -133,10 +160,10 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
             </h3>
             <div class="space-y-2">
               ${dateSlots.map(slot => {
-                const isSelected = selectedSlot && selectedSlot.date === slot.date && selectedSlot.start === slot.start;
+                const isSelected = selectedSlots.some(s => s.date === slot.date && s.start === slot.start);
                 return `
                   <button 
-                    onclick="window.selectSlot('${slot.date}', '${slot.start}', '${slot.end}', '${slot.display}')"
+                    onclick="toggleSlot('${slot.date}', '${slot.start}', '${slot.end}', '${slot.display}')"
                     class="w-full p-3 rounded-lg border-2 transition text-center ${
                       isSelected 
                         ? 'bg-blue-600 border-blue-600 text-white shadow-lg' 
@@ -153,27 +180,35 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
       });
 
       document.getElementById('app').innerHTML = `
-        <div class="max-w-4xl mx-auto p-4 md:p-6 min-h-screen">
+        <div class="max-w-4xl mx-auto p-6 min-h-screen">
           <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
-            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 md:p-8">
-              <h1 class="text-2xl md:text-3xl font-bold mb-2">Confirm Your Interview Availability</h1>
-              <p class="text-blue-100 text-sm md:text-base">Hi ${data.candidate_name}, please select your preferred time slot for ${data.job_title}</p>
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-8">
+              <h1 class="text-3xl font-bold mb-2">Confirm Your Interview Availability</h1>
+              <p class="text-blue-100">Hi ${data.candidate_name}, please select your preferred time slot${selectedSlots.length > 0 ? 's' : ''} for ${data.job_title}</p>
             </div>
             
-            <div class="p-6 md:p-8">
+            <div class="p-8">
               <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
                 <p class="text-sm text-amber-900 font-medium">
-                  <strong>Note:</strong> Each slot will be of 1 hour.
+                  <strong>Note:</strong> Each slot will be of 1 hour. You can select multiple time slots as backup options.
                 </p>
               </div>
 
               ${slotsHtml}
 
+              ${selectedSlots.length > 0 ? `
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p class="text-sm text-blue-900 font-semibold">
+                    ✓ ${selectedSlots.length} slot${selectedSlots.length > 1 ? 's' : ''} selected
+                  </p>
+                </div>
+              ` : ''}
+
               <button 
                 id="confirmBtn"
-                onclick="window.confirmAvailability()"
+                onclick="confirmAvailability()"
                 disabled
-                class="w-full py-4 bg-blue-600 text-white rounded-lg font-bold text-lg hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed mt-6">
+                class="w-full py-4 bg-blue-600 text-white rounded-lg font-bold text-lg hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed shadow-lg">
                 Confirm My Availability
               </button>
             </div>
@@ -184,48 +219,53 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
       updateConfirmButton();
     }
 
-    window.selectSlot = function(date, start, end, display) {
-      selectedSlot = { date, start, end, display };
-      loadData();
+    function toggleSlot(date, start, end, display) {
+      const index = selectedSlots.findIndex(s => s.date === date && s.start === start);
+      
+      if (index >= 0) {
+        selectedSlots.splice(index, 1);
+      } else {
+        selectedSlots.push({ date, start, end, display });
+      }
+      
+      if (currentData) {
+        const slots = splitIntoHours(currentData.slots);
+        renderPage(currentData, slots);
+      }
     }
 
     function updateConfirmButton() {
       const btn = document.getElementById('confirmBtn');
       if (btn) {
-        btn.disabled = !selectedSlot;
+        btn.disabled = selectedSlots.length === 0;
       }
     }
 
-    window.confirmAvailability = async function() {
-      if (!selectedSlot) {
-        alert('Please select a time slot');
+    async function confirmAvailability() {
+      if (selectedSlots.length === 0) {
+        alert('Please select at least one time slot');
         return;
       }
 
+      console.log('✅ Confirming slots:', selectedSlots);
+
       try {
-        console.log('💾 Saving confirmation to Supabase...');
-        
-        // Update in Supabase
-        const { data, error } = await supabaseClient
-          .from('availability_requests')
-          .update({
-            selected_slot: selectedSlot,
+        const data = await supabaseUpdate(
+          'availability_requests',
+          {
+            selected_slot: selectedSlots,
             status: 'confirmed',
             confirmed_at: new Date().toISOString()
-          })
-          .eq('token', token)
-          .select();
+          },
+          `token=eq.${token}`
+        );
 
-        if (error) {
-          console.error('❌ Update error:', error);
-          throw error;
-        }
-
-        console.log('✅ Confirmed in Supabase:', data);
+        console.log('✅ Confirmed successfully:', data);
+        
         submitted = true;
-        loadData();
-      } catch (error) {
-        console.error('❌ Exception:', error);
+        renderPage(data[0], []);
+      } catch (err) {
+        console.error('❌ Error:', err);
         alert('Failed to confirm availability. Please try again.');
       }
     }

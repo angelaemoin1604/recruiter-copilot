@@ -1,18 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
-import emailjs from '@emailjs/browser';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// EmailJS Configuration - YOUR ACTUAL CREDENTIALS
-const EMAILJS_SERVICE_ID = 'service_x3k41yt';
-const EMAILJS_TEMPLATE_ID = 'template_wkd39cc';
-const EMAILJS_PUBLIC_KEY = 'sTgpTb5NDksjA3krU';
-
-// Initialize EmailJS
-emailjs.init(EMAILJS_PUBLIC_KEY);
 
 const TABLE_COLUMNS = {
   employees: ['employee_id','name','email','phone','department','location','grade','level','hired_job_title','is_certified_panelist','is_active'],
@@ -119,14 +110,14 @@ export async function snapshot() {
 }
 
 // ========================================
-// AVAILABILITY REQUEST FUNCTIONS WITH EMAILJS
+// AVAILABILITY REQUEST FUNCTIONS
 // ========================================
 
 function generateUniqueToken() {
   return `avail_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-export async function sendAvailabilityEmail(candidate, slots, jobTitle) {
+export async function sendAvailabilityEmail(candidate, slots) {
   try {
     console.log('📧 Creating availability request in Supabase...');
     
@@ -144,7 +135,7 @@ export async function sendAvailabilityEmail(candidate, slots, jobTitle) {
         candidate_id: candidate.rh_id,
         candidate_name: candidate.name,
         candidate_email: candidate.email,
-        job_title: jobTitle || 'Position',  // ✅ Use the passed jobTitle parameter
+        job_title: candidate.current_title || 'Position',
         slots: slots,
         status: 'pending',
         created_at: new Date().toISOString(),
@@ -162,7 +153,7 @@ export async function sendAvailabilityEmail(candidate, slots, jobTitle) {
     // Generate confirmation URL
     const confirmationUrl = `${window.location.origin}/confirm-availability.html?token=${token}`;
     
-    // Format slots for email
+    // Format slots for email (TODO: Actually send email here)
     const slotList = slots.map(s => {
       const date = new Date(s.date + 'T00:00:00').toLocaleDateString('en-US', { 
         weekday: 'long', 
@@ -173,23 +164,9 @@ export async function sendAvailabilityEmail(candidate, slots, jobTitle) {
       return `• ${date} at ${s.display}`;
     }).join('\n');
     
-    console.log('📧 Sending email via EmailJS...');
-    
-    // Send email via EmailJS
-    const emailParams = {
-      to_email: candidate.email,
-      to_name: candidate.name,
-      slot_list: slotList,
-      confirmation_url: confirmationUrl
-    };
-    
-    const emailResponse = await emailjs.send(
-      EMAILJS_SERVICE_ID,
-      EMAILJS_TEMPLATE_ID,
-      emailParams
-    );
-    
-    console.log('✅ Email sent successfully!', emailResponse);
+    console.log('📧 Email would be sent to:', candidate.email);
+    console.log('🔗 Confirmation URL:', confirmationUrl);
+    console.log('📋 Slots:\n', slotList);
     
     // Return success with URL
     return { 
@@ -208,7 +185,7 @@ export async function sendAvailabilityEmail(candidate, slots, jobTitle) {
 }
 
 export async function initDB() {
-  console.log('✅ Using Supabase + EmailJS');
+  console.log('✅ Using Supabase');
   return Promise.resolve();
 }
 

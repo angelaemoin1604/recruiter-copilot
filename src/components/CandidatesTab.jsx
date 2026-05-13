@@ -1,8 +1,9 @@
-// CandidatesTab.jsx
+// CandidatesTab.jsx - UPDATED with CandidateDrawer
 import { useState, useEffect, useRef } from "react";
 import DataTable from "./DataTable.jsx";
 import { ExternalLink, Eye, Download, Calendar } from "lucide-react";
 import JobDrawer from "./JobDrawer.jsx";
+import CandidateDrawer from "./CandidateDrawer.jsx";  // NEW IMPORT
 import ResumePreview from "./ResumePreview.jsx";
 import CandidateAvailabilityPopup from "./CandidateAvailabilityPopup.jsx";
 import { downloadResumePDF } from "../pdf.js";
@@ -12,28 +13,35 @@ import * as DB from "../supabase.jsx";
 
 export default function CandidatesTab({ snapshot, highlightCandidates = [], currentUser, refreshSnapshot }) {
   const [jobDrawer, setJobDrawer] = useState(null);
+  const [candidateDrawer, setCandidateDrawer] = useState(null);  // NEW STATE
   const [previewFor, setPreviewFor] = useState(null);
-  const [availabilityPopup, setAvailabilityPopup] = useState(null);
+  const [availabilityPopup, setAvailabilityPopup] = useState(null); // Now stores { candidate, job }
   const toast = useToast();
+
+  // Get all unique candidates for navigation
+  const allCandidates = snapshot.candidates;
+
+  const handleCandidateNavigation = (direction) => {
+    if (!candidateDrawer) return;
+    
+    const currentIndex = allCandidates.findIndex(c => c.rh_id === candidateDrawer.rh_id);
+    let newIndex;
+    
+    if (direction === 'next') {
+      newIndex = (currentIndex + 1) % allCandidates.length;
+    } else {
+      newIndex = (currentIndex - 1 + allCandidates.length) % allCandidates.length;
+    }
+    
+    setCandidateDrawer(allCandidates[newIndex]);
+  };
 
   const handleSendAvailability = async (slots) => {
     try {
-      // Save slots to database
-      for (const slot of slots) {
-        await DB.add("candidate_availability", {
-          rh_id: availabilityPopup.rh_id,
-          slot_date: slot.date,
-          start_time: slot.start,
-          end_time: slot.end,
-          status: "pending",
-          requested_by: currentUser?.email || "recruiter@company.com"
-        });
-      }
+      // Send email to candidate with job title
+      await DB.sendAvailabilityEmail(availabilityPopup.candidate, slots, availabilityPopup.job.title);
 
-      // Send email to candidate
-      await DB.sendAvailabilityEmail(availabilityPopup, slots);
-
-      toast.success(`✅ Availability request sent to ${availabilityPopup.name}`);
+      toast.success(`✅ Availability request sent to ${availabilityPopup.candidate.name}`);
       setAvailabilityPopup(null);
       if (refreshSnapshot) await refreshSnapshot();
     } catch (error) {
@@ -45,7 +53,6 @@ export default function CandidatesTab({ snapshot, highlightCandidates = [], curr
   const rows = snapshot.applications.map(a => {
     const cand = snapshot.candidates.find(c => c.rh_id === a.rh_id);
     const job = snapshot.jobs.find(j => j.job_id === a.job_id);
-    // FIX #4: Check if this candidate should be highlighted
     const shouldHighlight = highlightCandidates.includes(cand?.rh_id);
     return { ...a, candidate: cand, job, shouldHighlight };
   }).filter(r => r.candidate && r.job);
@@ -61,7 +68,13 @@ export default function CandidatesTab({ snapshot, highlightCandidates = [], curr
             {r.candidate.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
           </div>
           <div className="min-w-0">
-            <div className="font-bold text-slate-900">{r.candidate.name}</div>
+            {/* UPDATED: Make name clickable */}
+            <button 
+              onClick={() => setCandidateDrawer(r.candidate)} 
+              className="font-bold text-blue-600 hover:text-blue-800 underline text-left cursor-pointer"
+            >
+              {r.candidate.name}
+            </button>
             <div className="mono text-[10px] text-slate-700">{r.candidate.rh_id}</div>
           </div>
         </div>
@@ -162,7 +175,7 @@ export default function CandidatesTab({ snapshot, highlightCandidates = [], curr
       render: r => (
         <div className={r.shouldHighlight ? 'animate-highlight-pulse' : ''}>
           <button
-            onClick={() => setAvailabilityPopup(r.candidate)}
+            onClick={() => setAvailabilityPopup({ candidate: r.candidate, job: r.job })}
             className="px-3 py-1.5 bg-indigo-50 border border-indigo-300 text-indigo-800 hover:bg-indigo-100 rounded flex items-center gap-1.5 text-xs font-semibold transition"
             title="Request Availability"
           >
@@ -176,7 +189,6 @@ export default function CandidatesTab({ snapshot, highlightCandidates = [], curr
 
   return (
     <div>
-      {/* FIX #4: Add CSS for highlight animation */}
       <style>{`
         @keyframes highlight-pulse {
           0%, 100% {
@@ -210,11 +222,21 @@ export default function CandidatesTab({ snapshot, highlightCandidates = [], curr
         emptyMessage="No candidates found"
         rowKey={r => `${r.rh_id}-${r.job_id}`}
       />
+      
       {jobDrawer && <JobDrawer job={jobDrawer} snapshot={snapshot} onClose={() => setJobDrawer(null)} />}
+      {candidateDrawer && (
+        <CandidateDrawer 
+          candidate={candidateDrawer} 
+          snapshot={snapshot} 
+          onClose={() => setCandidateDrawer(null)}
+          onNavigate={handleCandidateNavigation}
+        />
+      )}
       {previewFor && <ResumePreview {...previewFor} onClose={() => setPreviewFor(null)} />}
       {availabilityPopup && (
         <CandidateAvailabilityPopup
-          candidate={availabilityPopup}
+          candidate={availabilityPopup.candidate}
+          job={availabilityPopup.job}
           onClose={() => setAvailabilityPopup(null)}
           onSend={handleSendAvailability}
         />

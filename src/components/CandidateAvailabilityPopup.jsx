@@ -100,7 +100,7 @@ function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange, selecte
   );
 }
 
-export default function CandidateAvailabilityPopup({ candidate, onClose, onSend }) {
+export default function CandidateAvailabilityPopup({ candidate, job, onClose, onSend }) {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
@@ -212,7 +212,9 @@ export default function CandidateAvailabilityPopup({ candidate, onClose, onSend 
             <Calendar size={24} />
             <div>
               <h2 className="text-lg font-bold">Request Availability</h2>
-              <p className="text-sm text-blue-100">Send interview slot options to {candidate.name}</p>
+              <p className="text-sm text-blue-100">
+                Send interview slot options to {candidate.name} for <span className="font-semibold">{job?.title || 'Position'}</span>
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded">
