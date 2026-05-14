@@ -32,17 +32,23 @@ export default function CandidateDrawer({ candidate, onClose, snapshot, onNaviga
       } else {
         // Auto-expire requests after 48 hours
         const now = new Date();
-        const processedData = (data || []).map(request => {
+        const processedData = await Promise.all((data || []).map(async (request) => {
           if (request.status === 'pending') {
             const createdAt = new Date(request.created_at);
             const hoursSinceCreated = (now - createdAt) / (1000 * 60 * 60);
             
             if (hoursSinceCreated >= 48) {
+              // Update status in database
+              await DB.supabase
+                .from('availability_requests')
+                .update({ status: 'expired' })
+                .eq('id', request.id);
+              
               return { ...request, status: 'expired' };
             }
           }
           return request;
-        });
+        }));
         
         setAvailabilityRequests(processedData);
       }
