@@ -129,12 +129,17 @@ function generateUniqueToken() {
 export async function sendAvailabilityEmail(candidate, slots, jobTitle) {
   try {
     console.log('📧 Creating availability request in Supabase...');
+    console.log('🔍 DEBUG - Received jobTitle parameter:', jobTitle);
+    console.log('🔍 DEBUG - candidate.current_title:', candidate.current_title);
     
     // Generate token
     const token = generateUniqueToken();
     
     // Calculate expiration (48 hours)
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    
+    const finalJobTitle = jobTitle || candidate.current_title || 'Position';
+    console.log('🔍 DEBUG - Final job_title being saved:', finalJobTitle);
     
     // Save to Supabase
     const { data, error } = await supabase
@@ -144,7 +149,7 @@ export async function sendAvailabilityEmail(candidate, slots, jobTitle) {
         candidate_id: candidate.rh_id,
         candidate_name: candidate.name,
         candidate_email: candidate.email,
-        job_title: jobTitle || 'Position',  // ✅ Use the passed jobTitle parameter
+        job_title: finalJobTitle,
         slots: slots,
         status: 'pending',
         created_at: new Date().toISOString(),
@@ -162,16 +167,46 @@ export async function sendAvailabilityEmail(candidate, slots, jobTitle) {
     // Generate confirmation URL
     const confirmationUrl = `${window.location.origin}/confirm-availability.html?token=${token}`;
     
-    // Format slots for email
-    const slotList = slots.map(s => {
+    // Format slots as HTML table with proper columns
+    const slotTableRows = slots.map(s => {
       const date = new Date(s.date + 'T00:00:00').toLocaleDateString('en-US', { 
         weekday: 'long', 
         month: 'long', 
         day: 'numeric',
         year: 'numeric'
       });
-      return `• ${date} at ${s.display}`;
-    }).join('\n');
+      return `
+        <tr style="border-bottom: 2px solid #cbd5e1;">
+          <td style="padding: 16px 20px; border-right: 2px solid #cbd5e1; background-color: #ffffff; font-family: Arial, sans-serif;">
+            <p style="margin: 0; color: #000000; font-size: 15px; font-weight: 600;">
+              ${date}
+            </p>
+          </td>
+          <td style="padding: 16px 20px; background-color: #ffffff; font-family: Arial, sans-serif;">
+            <p style="margin: 0; color: #1e40af; font-size: 15px; font-weight: 700;">
+              ${s.display}
+            </p>
+          </td>
+        </tr>
+      `;
+    }).join('');
+    
+    // Complete table with headers
+    const fullSlotTable = `
+      <tr style="background-color: #bfdbfe; border-bottom: 3px solid #2563eb;">
+        <th style="padding: 16px 20px; border-right: 2px solid #2563eb; text-align: left; font-family: Arial, sans-serif;">
+          <p style="margin: 0; color: #1e3a8a; font-size: 14px; font-weight: bold; text-transform: uppercase;">
+            📅 DATE
+          </p>
+        </th>
+        <th style="padding: 16px 20px; text-align: left; font-family: Arial, sans-serif;">
+          <p style="margin: 0; color: #1e3a8a; font-size: 14px; font-weight: bold; text-transform: uppercase;">
+            🕐 TIME
+          </p>
+        </th>
+      </tr>
+      ${slotTableRows}
+    `;
     
     console.log('📧 Sending email via EmailJS...');
     
@@ -179,7 +214,8 @@ export async function sendAvailabilityEmail(candidate, slots, jobTitle) {
     const emailParams = {
       to_email: candidate.email,
       to_name: candidate.name,
-      slot_list: slotList,
+      job_title: jobTitle,
+      slot_table: fullSlotTable,
       confirmation_url: confirmationUrl
     };
     
