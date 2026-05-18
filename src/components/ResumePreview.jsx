@@ -35,16 +35,16 @@ export default function ResumePreview({ candidate, application, job, jobSkills, 
     try {
       downloadResumePDF(candidate, application, job, jobSkills);
       if (typeof toast?.success === "function") {
-        toast.success(`✅ Resume downloaded for ${candidate.name}`);
+        toast.success(`Resume downloaded for ${candidate.name}`);
       } else if (typeof toast === "function") {
-        toast(`✅ Resume downloaded for ${candidate.name}`);
+        toast(`Resume downloaded for ${candidate.name}`);
       }
     } catch (err) {
       console.error("Download error:", err);
       if (typeof toast?.error === "function") {
-        toast.error(`❌ Download failed: ${err?.message || "Unknown error"}`);
+        toast.error(`Download failed: ${err?.message || "Unknown error"}`);
       } else if (typeof toast === "function") {
-        toast(`❌ Download failed: ${err?.message || "Unknown error"}`);
+        toast(`Download failed: ${err?.message || "Unknown error"}`);
       }
     }
   };

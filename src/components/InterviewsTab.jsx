@@ -109,11 +109,11 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
       await DB.put("interviews", { ...rescheduleFor, slot_date: newDate, start_time: newStart, end_time: newEnd, status: "rescheduled" });
       await DB.add("interview_history", { interview_id: rescheduleFor.id, action: "rescheduled", at: new Date().toISOString(), by_user: currentUser.id, metadata: JSON.stringify({ reason }) });
       await refreshSnapshot();
-      toast.success(`✅ Interview rescheduled to ${formatDate(newDate)}!`);
+      toast.success(`Interview rescheduled to ${formatDate(newDate)}!`);
       setRescheduleFor(null);
     } catch (err) {
       console.error("Reschedule error:", err);
-      toast.error(`❌ Reschedule failed: ${err?.message || "Unknown error"}`);
+      toast.error(`Reschedule failed: ${err?.message || "Unknown error"}`);
     } finally { setSaving(false); }
   };
 
@@ -123,11 +123,11 @@ export default function InterviewsTab({ snapshot, refreshSnapshot, currentUser }
       await DB.put("interviews", { ...cancelFor, status: "cancelled" });
       await DB.add("interview_history", { interview_id: cancelFor.id, action: "cancelled", at: new Date().toISOString(), by_user: currentUser.id, metadata: JSON.stringify({ reason }) });
       await refreshSnapshot();
-      toast.success(`✅ Interview cancelled successfully!`);
+      toast.success(`Interview cancelled successfully!`);
       setCancelFor(null);
     } catch (err) {
       console.error("Cancel error:", err);
-      toast.error(`❌ Cancel failed: ${err?.message || "Unknown error"}`);
+      toast.error(`Cancel failed: ${err?.message || "Unknown error"}`);
     } finally { setSaving(false); }
   };
 

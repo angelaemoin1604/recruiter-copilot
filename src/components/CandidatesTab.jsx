@@ -41,12 +41,12 @@ export default function CandidatesTab({ snapshot, highlightCandidates = [], curr
       // Send email to candidate with job title
       await DB.sendAvailabilityEmail(availabilityPopup.candidate, slots, availabilityPopup.job.title);
 
-      toast.success(`✅ Availability request sent to ${availabilityPopup.candidate.name}`);
+      toast.success(`Availability request sent to ${availabilityPopup.candidate.name}`);
       setAvailabilityPopup(null);
       if (refreshSnapshot) await refreshSnapshot();
     } catch (error) {
       console.error("Error sending availability:", error);
-      toast.error("❌ Failed to send availability request");
+      toast.error("Failed to send availability request");
     }
   };
 
@@ -156,7 +156,7 @@ export default function CandidatesTab({ snapshot, highlightCandidates = [], curr
             <button
               onClick={() => {
                 downloadResumePDF(r.candidate, r, r.job, jobSkills);
-                toast.success(`✅ Resume downloaded: ${r.candidate.name}_${r.candidate.rh_id}_Resume.pdf`);
+                toast.success(`Resume downloaded: ${r.candidate.name}_${r.candidate.rh_id}_Resume.pdf`);
               }}
               className="p-1.5 bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100 rounded"
               title="Download CV"

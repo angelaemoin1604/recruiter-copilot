@@ -30,8 +30,8 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
     try {
       await DB.put("employees", { ...live, is_certified_panelist: !live.is_certified_panelist });
       await refreshSnapshot();
-      toast.success(live.is_certified_panelist ? "✅ Certification removed. Skills, Rounds & Grades hidden." : "✅ Employee is now a Certified Panelist!");
-    } catch (err) { toast.error(`❌ Failed: ${err?.message}`); }
+      toast.success(live.is_certified_panelist ? "Certification removed. Skills, Rounds & Grades hidden." : "Employee is now a Certified Panelist!");
+    } catch (err) { toast.error(`Failed: ${err?.message}`); }
   };
 
   const removeSkill = async (skill) => {
@@ -75,8 +75,8 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
     try {
       await DB.add("interviewer_availability", { employee_id: req.employee_id, slot_date: req.slot_date, start_time: req.start_time, end_time: req.end_time, status: "confirmed", added_by: currentUser.id, added_by_self: false });
       await DB.put("time_slot_request", { ...req, status: "confirmed" });
-      await refreshSnapshot(); toast.success("✅ Request confirmed!");
-    } catch (err) { toast.error(`❌ Failed: ${err?.message}`); }
+      await refreshSnapshot(); toast.success("Request confirmed!");
+    } catch (err) { toast.error(`Failed: ${err?.message}`); }
   };
 
   const rejectRequest = async (reqId) => {
@@ -85,20 +85,20 @@ export default function EmployeeDrawer({ employee, snapshot, refreshSnapshot, cu
     try {
       await DB.put("time_slot_request", { ...req, status: "rejected" });
       await refreshSnapshot(); toast.success("Request rejected"); setConfirmDel(null);
-    } catch (err) { toast.error(`❌ Failed: ${err?.message}`); }
+    } catch (err) { toast.error(`Failed: ${err?.message}`); }
   };
 
   const handleAddSlot = async (data) => {
     try {
       if (data.mode === "confirmed") {
         await DB.add("interviewer_availability", { employee_id: employee.employee_id, slot_date: data.date, start_time: data.start, end_time: data.end, status: "confirmed", added_by: currentUser.id, added_by_self: currentUser.id === employee.employee_id });
-        toast.success(`✅ Confirmed timeslot added for ${employee.name}!`);
+        toast.success(`Confirmed timeslot added for ${employee.name}!`);
       } else {
         await DB.add("time_slot_request", { employee_id: employee.employee_id, requested_by: currentUser.id, slot_date: data.date, start_time: data.start, end_time: data.end, repeat_pattern: data.repeat || "none", status: "pending", created_at: new Date().toISOString() });
-        toast.success(`⏳ Pending request sent for ${employee.name}!`);
+        toast.success(`Pending request sent for ${employee.name}!`);
       }
       await refreshSnapshot(); setShowAddSlot(false);
-    } catch (err) { toast.error(`❌ Failed to add timeslot: ${err?.message || "Unknown error"}`); }
+    } catch (err) { toast.error(`Failed to add timeslot: ${err?.message || "Unknown error"}`); }
   };
 
   const getName = (id) => { const e = snapshot.employees.find(x => x.employee_id === id); return e ? (e.employee_id === currentUser.id ? `${e.name} (me)` : e.name) : "Unknown"; };

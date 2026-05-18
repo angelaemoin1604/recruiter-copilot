@@ -1,140 +1,103 @@
-// CandidateAvailabilityPopup.jsx - WITH START/END TIME DROPDOWNS
-import { useState, useEffect } from "react";
-import { X, ChevronLeft, ChevronRight, Calendar, Clock, Send, Plus } from "lucide-react";
+// CandidateAvailabilityPopup.jsx - COMPACT VERSION
+import { useState, useEffect, useRef } from "react";
+import { X, ChevronLeft, ChevronRight, Calendar, Send } from "lucide-react";
 
-// Time Range Selector Component with Start/End dropdowns
-function TimeRangeSelector({ selectedDate, selectedSlots, onSlotsChange, selectedDates }) {
-  const [startTime, setStartTime] = useState("10:00");
-  const [endTime, setEndTime] = useState("19:00");
-
-  // Auto-add default slot for all selected dates when dates change
-  useEffect(() => {
-    if (selectedDates.length > 0) {
-      const startHour = parseInt(startTime.split(':')[0]);
-      const endHour = parseInt(endTime.split(':')[0]);
-      
-      const startDisplay = startHour < 12 ? `${startHour}:00 AM` : 
-                          startHour === 12 ? `12:00 PM` : 
-                          `${startHour - 12}:00 PM`;
-      const endDisplay = endHour < 12 ? `${endHour}:00 AM` : 
-                        endHour === 12 ? `12:00 PM` : 
-                        `${endHour - 12}:00 PM`;
-      
-      const display = `${startDisplay} - ${endDisplay}`;
-      
-      // Add/update slots for all selected dates
-      const newSlots = selectedDates.map(dateStr => ({
-        date: dateStr,
-        start: startTime,
-        end: endTime,
-        display
-      }));
-      
-      onSlotsChange(newSlots);
-    }
-  }, [selectedDates, startTime, endTime]);
-
-  // Generate time options - Start: 7-10 AM, End: 6-10 PM
-  const generateStartTimeOptions = () => {
-    const hours = [7, 8, 9, 10];
-    return hours.map(hour => {
-      const time24 = `${hour.toString().padStart(2, '0')}:00`;
-      const display = `${hour}:00 AM`;
-      return { value: time24, label: display, hour };
-    });
-  };
-
-  const generateEndTimeOptions = () => {
-    const hours = [18, 19, 20, 22]; // 6 PM, 7 PM, 8 PM, 10 PM
-    return hours.map(hour => {
-      const time24 = `${hour.toString().padStart(2, '0')}:00`;
-      const display = hour === 18 ? '6:00 PM' :
-                      hour === 19 ? '7:00 PM' :
-                      hour === 20 ? '8:00 PM' :
-                      '10:00 PM';
-      return { value: time24, label: display, hour };
-    });
-  };
-
-  const startTimeOptions = generateStartTimeOptions();
-  const endTimeOptions = generateEndTimeOptions();
-
-  return (
-    <div className="space-y-4">
-      {/* Note about time slot */}
-      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-        <p className="text-xs text-amber-900 font-medium">
-          <strong>Note:</strong> Select your preferred start and end times. These availability slots will be sent to the candidate for them to choose their convenient date and time.
-        </p>
-      </div>
-
-      {/* Start and End Time Dropdowns */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-bold text-slate-700 mb-2">START TIME</label>
-          <select
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-          >
-            {startTimeOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-slate-700 mb-2">END TIME</label>
-          <select
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-          >
-            {endTimeOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function CandidateAvailabilityPopup({ candidate, job, onClose, onSend }) {
+export default function CandidateAvailabilityPopup({ candidate, job, onClose, onSend, confirmedSlots = [] }) {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState(null);
+  const isDraggingRef = useRef(false); // Use ref for immediate sync
+  const dragStartRef = useRef(null); // Use ref for immediate sync
+  const hoveredDateRef = useRef(null);
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [tempYear, setTempYear] = useState(null);
 
-  // Proper calendar day generation
+  // Fixed time range: 7 AM to 10 PM
+  const FIXED_START_TIME = "07:00";
+  const FIXED_END_TIME = "22:00";
+  const FIXED_TIME_DISPLAY = "7:00 AM - 10:00 PM";
+
+  // Get current year/month/date to highlight properly
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+  const currentDate = today.getDate();
+
+  // Global mouseup - only reset drag if clicking OUTSIDE the calendar
+  useEffect(() => {
+    const handleGlobalMouseUp = (e) => {
+      console.log('[GLOBAL MOUSEUP]', Date.now(), 'isDragging:', isDraggingRef.current);
+      // Only reset if clicking outside calendar AND drag is active
+      if (isDraggingRef.current) {
+        const clickedInsideCalendar = e.target.closest('button');
+        if (!clickedInsideCalendar) {
+          console.log('  → OUTSIDE calendar - resetting drag');
+          isDraggingRef.current = false;
+          dragStartRef.current = null;
+        } else {
+          console.log('  → INSIDE calendar button - NOT resetting drag');
+        }
+      }
+    };
+    
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
+
+  // Close year/month picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if ((showYearPicker || showMonthPicker) && !e.target.closest('.year-picker-container')) {
+        setShowYearPicker(false);
+        setShowMonthPicker(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showYearPicker, showMonthPicker]);
+
+  // Auto-create slots when dates are selected
+  useEffect(() => {
+    if (selectedDates.length > 0) {
+      const newSlots = selectedDates.map(dateStr => ({
+        date: dateStr,
+        start: FIXED_START_TIME,
+        end: FIXED_END_TIME,
+        display: FIXED_TIME_DISPLAY
+      }));
+      setSelectedSlots(newSlots);
+    } else {
+      setSelectedSlots([]);
+    }
+  }, [selectedDates]);
+
+  // Generate calendar days
   const generateCalendarDays = () => {
     const days = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Get first day of the selected month
     const firstDayOfMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
-    
-    // Get the starting Sunday (may be from previous month)
     const startDate = new Date(firstDayOfMonth);
     const dayOfWeek = firstDayOfMonth.getDay();
     startDate.setDate(firstDayOfMonth.getDate() - dayOfWeek);
     
-    // Generate exactly 42 days (6 weeks)
     const currentDate = new Date(startDate);
     
     for (let i = 0; i < 42; i++) {
       const isPast = currentDate < today;
       const isCurrentMonth = currentDate.getMonth() === selectedMonth.getMonth();
       
-      // FIX: Use local date string instead of ISO to avoid timezone issues
       const year = currentDate.getFullYear();
       const month = String(currentDate.getMonth() + 1).padStart(2, '0');
       const day = String(currentDate.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
       
-      const isToday = currentDate.toDateString() === today.toDateString();
+      const isToday = currentDate.getFullYear() === today.getFullYear() &&
+                      currentDate.getMonth() === today.getMonth() &&
+                      currentDate.getDate() === today.getDate();
       
       days.push({
         date: new Date(currentDate),
@@ -145,7 +108,6 @@ export default function CandidateAvailabilityPopup({ candidate, job, onClose, on
         isToday
       });
       
-      // Move to next day
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
@@ -153,297 +115,402 @@ export default function CandidateAvailabilityPopup({ candidate, job, onClose, on
   };
 
   const calendarDays = generateCalendarDays();
-  const months = ["January", "February", "March", "April", "May", "June", 
-                  "July", "August", "September", "October", "November", "December"];
 
   const prevMonth = () => {
-    setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1));
+    const newDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1);
+    // Prevent going to past months
+    if (newDate.getFullYear() < currentYear || 
+        (newDate.getFullYear() === currentYear && newDate.getMonth() < currentMonth)) {
+      return; // Don't allow
+    }
+    setSelectedMonth(newDate);
   };
 
   const nextMonth = () => {
     setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1));
   };
 
-  const toggleSlot = (dateStr, timeSlot) => {
-    const slotKey = `${dateStr}-${timeSlot.start}`;
-    const existingIndex = selectedSlots.findIndex(s => `${s.date}-${s.start}` === slotKey);
-    
-    if (existingIndex >= 0) {
-      setSelectedSlots(selectedSlots.filter((_, i) => i !== existingIndex));
+  const selectYear = (year) => {
+    if (year === currentYear) {
+      // Current year selected - go directly to calendar with current month
+      setSelectedMonth(new Date(year, currentMonth, 1));
+      setShowYearPicker(false);
+      setShowMonthPicker(false);
     } else {
-      setSelectedSlots([...selectedSlots, { 
-        date: dateStr, 
-        start: timeSlot.start, 
-        end: timeSlot.end, 
-        display: timeSlot.display 
-      }]);
+      // Other year selected - show month picker
+      setTempYear(year);
+      setShowYearPicker(false);
+      setShowMonthPicker(true);
     }
   };
 
-  const isSlotSelected = (dateStr, timeSlot) => {
-    return selectedSlots.some(s => s.date === dateStr && s.start === timeSlot.start);
+  const selectMonth = (monthIndex) => {
+    setSelectedMonth(new Date(tempYear, monthIndex, 1));
+    setShowMonthPicker(false);
+    setTempYear(null);
   };
 
-  const hasSlotOnDate = (dateStr) => {
-    return selectedSlots.some(s => s.date === dateStr);
+  const openYearPicker = () => {
+    setShowYearPicker(true);
+    setShowMonthPicker(false);
   };
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if (selectedSlots.length === 0) {
-      alert("Please select at least one time slot");
+      alert("Please select at least one date");
       return;
     }
-	try {
-    // Call onSend with just the slots
-    await onSend(selectedSlots);
-    // Parent will handle success/close
-  } catch (error) {
-    console.error('Error sending availability:', error);
-    alert(`❌ Error: ${error.message}`);
-  }
-};
-    
+    onSend(selectedSlots);
+  };
+
+  const removeSlot = (dateStr) => {
+    setSelectedDates(prev => prev.filter(d => d !== dateStr));
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-          <div className="flex items-center gap-3">
-            <Calendar size={24} />
-            <div>
-              <h2 className="text-lg font-bold">Request Availability</h2>
-              <p className="text-sm text-blue-100">
-                Send interview slot options to {candidate.name} for <span className="font-semibold">{job?.title || 'Position'}</span>
-              </p>
-            </div>
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={(e) => {
+        // Prevent closing when clicking on background
+        e.stopPropagation();
+      }}
+    >
+      <div 
+        className="bg-white rounded-lg shadow-2xl w-full max-w-4xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Compact Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-4 py-3 rounded-t-lg flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Calendar size={20} />
+              Request Availability
+            </h2>
+            <p className="text-blue-100 text-xs mt-0.5">
+              Send slots to {candidate.name} for {job?.title || 'position'}
+            </p>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-white/20 rounded">
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-white/20 rounded transition"
+          >
             <X size={20} />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            {/* Left: Calendar */}
-            <div>
-              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                {/* Month navigation */}
-                <div className="flex items-center justify-between mb-4">
-                  <button onClick={prevMonth} className="p-2 hover:bg-slate-200 rounded">
-                    <ChevronLeft size={20} />
-                  </button>
-                  <div className="font-bold text-lg text-slate-900">
-                    {months[selectedMonth.getMonth()]} {selectedMonth.getFullYear()}
-                  </div>
-                  <button onClick={nextMonth} className="p-2 hover:bg-slate-200 rounded">
-                    <ChevronRight size={20} />
-                  </button>
-                </div>
-
-                {/* Day headers */}
-                <div className="grid grid-cols-7 gap-2 mb-2">
-                  {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(day => (
-                    <div key={day} className="text-center text-xs font-bold text-slate-600">
-                      {day}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Calendar days - CLICK-HOVER-CLICK SELECTION */}
-                <div className="grid grid-cols-7 gap-2">
-                  {calendarDays.map((day, i) => {
-                    const hasSlots = hasSlotOnDate(day.dateStr);
-                    const isSelected = selectedDates.includes(day.dateStr);
-                    const isDisabled = day.isPast || !day.isCurrentMonth;
-                    
-                    return (
-                      <button
-                        key={`${day.dateStr}-${i}`}
-                        onClick={() => {
-                          if (!isDisabled) {
-                            // Use dragStart as the source of truth for selection mode
-                            if (dragStart === null) {
-                              // First click - start selection
-                              setIsDragging(true);
-                              setDragStart(day.dateStr);
-                              setSelectedDates([day.dateStr]);
-                            } else {
-                              // Second click - finalize selection
-                              // Calculate final range from dragStart to current clicked date
-                              const allDates = calendarDays
-                                .filter(d => !d.isPast && d.isCurrentMonth)
-                                .map(d => d.dateStr);
-                              
-                              const startIdx = allDates.indexOf(dragStart);
-                              const endIdx = allDates.indexOf(day.dateStr);
-                              
-                              if (startIdx !== -1 && endIdx !== -1) {
-                                const minIdx = Math.min(startIdx, endIdx);
-                                const maxIdx = Math.max(startIdx, endIdx);
-                                const rangeSelected = allDates.slice(minIdx, maxIdx + 1);
-                                setSelectedDates(rangeSelected);
-                              }
-                              
-                              // Clear drag state AFTER setting dates
-                              setIsDragging(false);
-                              setDragStart(null);
-                            }
-                          }
-                        }}
-                        onMouseEnter={() => {
-                          if (isDragging && !isDisabled && dragStart) {
-                            // Build date range from dragStart to current date while hovering
-                            const allDates = calendarDays
-                              .filter(d => !d.isPast && d.isCurrentMonth)
-                              .map(d => d.dateStr);
-                            
-                            const startIdx = allDates.indexOf(dragStart);
-                            const endIdx = allDates.indexOf(day.dateStr);
-                            
-                            if (startIdx !== -1 && endIdx !== -1) {
-                              const minIdx = Math.min(startIdx, endIdx);
-                              const maxIdx = Math.max(startIdx, endIdx);
-                              const rangeSelected = allDates.slice(minIdx, maxIdx + 1);
-                              setSelectedDates(rangeSelected);
-                            }
-                          }
-                        }}
-                        disabled={isDisabled}
-                        className={`
-                          h-10 w-full rounded-lg transition-all flex items-center justify-center select-none
-                          ${!day.isCurrentMonth ? 'text-slate-300 cursor-not-allowed bg-slate-50' : ''}
-                          ${day.isPast && day.isCurrentMonth ? 'text-slate-400 cursor-not-allowed bg-slate-100' : ''}
-                          ${day.isToday && !isSelected ? 'ring-2 ring-orange-400' : ''}
-                          
-                          ${isSelected 
-                            ? 'bg-gradient-to-br from-blue-700 to-indigo-700 text-white font-black text-base shadow-xl ring-4 ring-blue-400 scale-105 transform' 
-                            : ''
-                          }
-                          
-                          ${hasSlots && !isSelected && !isDisabled 
-                            ? 'bg-emerald-100 text-emerald-900 ring-2 ring-emerald-400 font-bold text-sm' 
-                            : ''
-                          }
-                          
-                          ${!isDisabled && !isSelected && !hasSlots 
-                            ? 'bg-white border border-slate-300 hover:bg-blue-50 hover:border-blue-400 hover:shadow-md text-slate-700 font-medium text-sm' 
-                            : ''
-                          }
-                        `}
-                      >
-                        {day.day}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Updated Legend */}
-                <div className="mt-4 text-xs text-slate-600 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-700 to-indigo-700 shadow-xl ring-2 ring-blue-400"></div>
-                    <span className="font-semibold">Selected dates (darker blue)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded bg-emerald-100 border-2 border-emerald-400"></div>
-                    <span className="font-semibold">Has time slots selected</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded border-2 border-orange-400"></div>
-                    <span>Today's date</span>
-                  </div>
-                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                    <div className="font-semibold text-blue-900 mb-1">💡 Tip:</div>
-                    <div className="text-xs text-blue-800 space-y-1">
-                      <div>1. Click on start date, hover over dates to preview selection, then click on end date to finalize.</div>
-                      <div>2. Click the same date twice for single date selection.</div>
-                    </div>
-                  </div>
-                </div>
+        <div className="p-4">
+          {/* Note about fixed time */}
+          <div className="mb-3 p-2.5 bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-orange-400 rounded text-xs">
+            <div className="flex items-start gap-2">
+              <span className="text-orange-600 text-base">📌</span>
+              <div className="text-amber-900">
+                <strong>Note:</strong> Select dates from the calendar. All slots will have the time range{' '}
+                <span className="font-bold text-orange-700">7:00 AM - 10:00 PM</span>. 
+                These availability options will be sent to the candidate to choose their{' '}
+                <span className="font-bold">preferred date and time</span>.
               </div>
             </div>
+          </div>
 
-            {/* Right: Time slots with dropdowns */}
+          {/* Horizontal Layout: Calendar | Selected Slots */}
+          <div className="grid grid-cols-[1.2fr,1fr] gap-4">
+            {/* Left: Compact Calendar */}
             <div>
-              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                {selectedDates.length > 0 ? (
-                  <>
-                    <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-300">
-                      <Clock size={20} className="text-blue-600" />
-                      <div>
-                        <div className="font-bold text-slate-900">Dates & Time Selected</div>
-                        <div className="text-sm text-slate-600">
-                          {selectedDates.length} date{selectedDates.length > 1 ? 's' : ''} selected
-                        </div>
+              {/* Month Navigation with Year & Month Picker */}
+              <div className="flex items-center justify-between mb-2 relative year-picker-container">
+                <button 
+                  onClick={prevMonth} 
+                  disabled={selectedMonth.getFullYear() === currentYear && selectedMonth.getMonth() === currentMonth}
+                  className="p-1 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                
+                <button
+                  onClick={openYearPicker}
+                  className="text-sm font-bold hover:bg-gray-100 px-2 py-1 rounded flex items-center gap-1"
+                >
+                  {selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  <span className="text-xs">▼</span>
+                </button>
+                
+                <button 
+                  onClick={nextMonth} 
+                  className="p-1 hover:bg-gray-100 rounded"
+                >
+                  <ChevronRight size={16} />
+                </button>
+
+                {/* Year Picker Dropdown */}
+                {showYearPicker && (
+                  <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-xl z-10 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs font-bold text-slate-700">
+                        {currentYear} - {currentYear + 29}
                       </div>
                     </div>
+                    <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+                      {Array.from({ length: 30 }, (_, i) => currentYear + i).map(year => {
+                        const isCurrentYear = year === currentYear;
+                        const isSelectedYear = year === selectedMonth.getFullYear();
+                        
+                        return (
+                          <button
+                            key={year}
+                            onClick={() => selectYear(year)}
+                            className={`
+                              px-3 py-1.5 text-xs rounded transition font-medium
+                              ${isSelectedYear 
+                                ? 'bg-blue-700 text-white font-bold ring-2 ring-blue-400' 
+                                : isCurrentYear
+                                  ? 'bg-blue-100 text-blue-900 font-bold border-2 border-blue-500'
+                                  : 'bg-slate-100 hover:bg-blue-50 text-slate-700'
+                              }
+                            `}
+                          >
+                            {year}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-                    {/* Time Range Selector */}
-                    <TimeRangeSelector 
-                      selectedDate={selectedDates[0]}
-                      selectedSlots={selectedSlots}
-                      onSlotsChange={setSelectedSlots}
-                      selectedDates={selectedDates}
-                    />
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-center py-20">
-                    <Calendar size={48} className="text-slate-300 mb-3" />
-                    <p className="text-slate-600 font-medium">Select date(s) from the calendar</p>
-                    <p className="text-sm text-slate-500 mt-1">Click one date or drag to select multiple dates</p>
+                {/* Month Picker Dropdown */}
+                {showMonthPicker && (
+                  <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-xl z-10 p-3">
+                    <div className="text-xs font-bold text-slate-700 mb-3 text-center">{tempYear}</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'].map((monthName, idx) => {
+                        // Always highlight current month (May = 4) regardless of year
+                        const isCurrentMonth = idx === currentMonth;
+                        const isSelectedMonth = tempYear === selectedMonth.getFullYear() && idx === selectedMonth.getMonth();
+                        
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => selectMonth(idx)}
+                            className={`
+                              px-3 py-2 text-xs rounded transition font-medium
+                              ${isSelectedMonth
+                                ? 'bg-blue-700 text-white font-bold ring-2 ring-blue-400'
+                                : isCurrentMonth
+                                  ? 'bg-orange-100 text-orange-900 font-bold border-2 border-orange-500'
+                                  : 'bg-slate-100 hover:bg-blue-50 text-slate-700'
+                              }
+                            `}
+                          >
+                            {monthName}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
-          </div>
 
-          {/* Selected slots summary */}
-          {selectedSlots.length > 0 && (
-            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="font-bold text-blue-900 mb-2">Selected Slots ({selectedSlots.length})</div>
-              <div className="flex flex-wrap gap-2">
-                {selectedSlots.map((slot, i) => (
-                  <div key={i} className="inline-flex items-center gap-2 bg-white border border-blue-300 rounded-lg px-3 py-1.5 text-sm shadow-sm">
-                    <span className="font-medium text-blue-900">
-                      {new Date(slot.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
-                    <span className="text-blue-700">{slot.display}</span>
-                    <button
-                      onClick={() => toggleSlot(slot.date, { start: slot.start, end: slot.end, display: slot.display })}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
+              {/* Calendar Grid */}
+              <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="text-[10px] font-bold text-gray-600 py-1">{day}</div>
                 ))}
               </div>
+
+              <div className="grid grid-cols-7 gap-1">
+                {calendarDays.map((day, i) => {
+                  const isSelected = selectedDates.includes(day.dateStr);
+                  const isDisabled = day.isPast || !day.isCurrentMonth;
+
+                  // Check if candidate has confirmed this slot
+                  const hasConfirmedSlot = confirmedSlots.includes(day.dateStr);
+
+                  // Check if this is today's date (18th May 2026) - show even in other months/years
+                  const isTodayDate = day.day === currentDate && 
+                                     day.date.getMonth() === currentMonth &&
+                                     day.isCurrentMonth;
+
+                  return (
+                    <button
+                      key={i}
+                      onClick={(e) => {
+                        if (isDisabled) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        console.log('[ONCLICK]', Date.now());
+                        
+                        // Read ref values IMMEDIATELY at click time
+                        const currentlyDragging = isDraggingRef.current;
+                        const currentDragStart = dragStartRef.current;
+                        
+                        console.log('=== CLICK ===', day.dateStr);
+                        console.log('  isDraggingRef.current:', currentlyDragging);
+                        console.log('  dragStartRef.current:', currentDragStart);
+                        console.log('  isSelected:', isSelected);
+                        console.log('  selectedDates:', selectedDates);
+                        console.log('  selectedDates.length:', selectedDates.length);
+                        console.log('  selectedDates[0]:', selectedDates[0]);
+                        console.log('  day.dateStr:', day.dateStr);
+                        console.log('  Are they equal?', selectedDates[0] === day.dateStr);
+                        
+                        // CASE 1: Drag is active - END it
+                        if (currentlyDragging && currentDragStart) {
+                          console.log('  → CASE 1: END DRAG at:', day.dateStr);
+                          isDraggingRef.current = false;
+                          dragStartRef.current = null;
+                          // Range already set by hover, just end drag
+                          return;
+                        }
+                        
+                        // CASE 2: Clicking same single date again (e.g., 19 then 19) - keep it selected
+                        if (isSelected && selectedDates.length === 1 && selectedDates[0] === day.dateStr) {
+                          console.log('  → CASE 2: Clicking same single date, keep selected');
+                          // Don't remove it, treat as starting new drag
+                          isDraggingRef.current = true;
+                          dragStartRef.current = day.dateStr;
+                          console.log('  → IMMEDIATELY AFTER SETTING: isDraggingRef.current =', isDraggingRef.current);
+                          console.log('  → IMMEDIATELY AFTER SETTING: dragStartRef.current =', dragStartRef.current);
+                          return;
+                        }
+                        
+                        // CASE 3: Clicking already selected date in a range - remove it
+                        if (isSelected && !currentlyDragging) {
+                          console.log('  → CASE 3: REMOVE date:', day.dateStr);
+                          setSelectedDates(prev => prev.filter(d => d !== day.dateStr));
+                          return;
+                        }
+                        
+                        // CASE 4: Start new drag from this unselected date
+                        console.log('  → CASE 4: START DRAG from:', day.dateStr);
+                        isDraggingRef.current = true;
+                        dragStartRef.current = day.dateStr;
+                        setSelectedDates([day.dateStr]);
+                        
+                        console.log('  After setting: isDraggingRef.current =', isDraggingRef.current);
+                        console.log('  After setting: dragStartRef.current =', dragStartRef.current);
+                      }}
+                      onMouseEnter={() => {
+                        // Update range while dragging (NO button press needed!)
+                        if (isDraggingRef.current && !isDisabled && dragStartRef.current) {
+                          const allDates = calendarDays
+                            .filter(d => !d.isPast && d.isCurrentMonth)
+                            .map(d => d.dateStr);
+                          
+                          const startIdx = allDates.indexOf(dragStartRef.current);
+                          const endIdx = allDates.indexOf(day.dateStr);
+                          
+                          if (startIdx !== -1 && endIdx !== -1) {
+                            const minIdx = Math.min(startIdx, endIdx);
+                            const maxIdx = Math.max(startIdx, endIdx);
+                            const rangeSelected = allDates.slice(minIdx, maxIdx + 1);
+                            setSelectedDates(rangeSelected);
+                          }
+                        }
+                      }}
+                      disabled={isDisabled}
+                      className={`
+                        h-8 w-full rounded transition-all flex items-center justify-center text-xs font-medium select-none
+                        ${!day.isCurrentMonth ? 'text-slate-300 cursor-not-allowed bg-slate-50' : ''}
+                        ${day.isPast && day.isCurrentMonth ? 'text-slate-400 cursor-not-allowed bg-slate-100' : ''}
+                        ${isTodayDate && !isSelected && !hasConfirmedSlot ? 'ring-2 ring-orange-400 bg-orange-50' : ''}
+                        ${hasConfirmedSlot && !isSelected ? 'ring-2 ring-green-500 bg-green-50' : ''}
+                        ${isSelected 
+                          ? 'bg-gradient-to-br from-blue-700 to-indigo-700 text-white font-bold shadow-md' 
+                          : !isDisabled 
+                            ? 'bg-white border border-slate-300 hover:bg-blue-50 hover:border-blue-400' 
+                            : ''
+                        }
+                      `}
+                    >
+                      {day.day}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Compact Legend */}
+              <div className="mt-2 text-[10px] text-slate-600 space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-700 to-indigo-700 ring-2 ring-blue-700"></div>
+                  <span>Selected dates</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded bg-white ring-2 ring-green-500"></div>
+                  <span>Candidate confirmed slot</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded bg-white ring-2 ring-orange-400"></div>
+                  <span>Today</span>
+                </div>
+              </div>
             </div>
-          )}
+
+            {/* Right: Selected Slots */}
+            <div className="bg-slate-50 rounded-lg p-3 border border-slate-200 flex flex-col h-[380px]">
+              {selectedSlots.length > 0 ? (
+                <>
+                  <div className="text-xs font-bold text-slate-900 mb-2 flex-shrink-0">
+                    Selected Slots ({selectedSlots.length})
+                  </div>
+                  <div className="space-y-1.5 overflow-y-auto flex-1">
+                    {selectedSlots.map((slot, i) => (
+                      <div 
+                        key={i} 
+                        className="bg-white border border-blue-300 rounded px-2 py-1.5 flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <div className="font-bold text-blue-900">
+                            {new Date(slot.date + 'T00:00:00').toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </div>
+                          <div className="text-blue-700 text-[10px]">{slot.display}</div>
+                        </div>
+                        <button
+                          onClick={() => removeSlot(slot.date)}
+                          className="text-blue-600 hover:text-blue-800 p-0.5"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <Calendar size={32} className="text-slate-300 mb-2" />
+                  <p className="text-xs text-slate-600 font-medium">Select dates from calendar</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Click or drag to select</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50">
-          <div className="text-sm text-slate-600">
+        {/* Compact Footer */}
+        <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50">
+          <div className="text-xs text-slate-600">
             {selectedSlots.length > 0 ? (
               <span className="font-medium text-slate-900">{selectedSlots.length} slot(s) selected</span>
             ) : (
-              <span>Select time slots to send to candidate</span>
+              <span>Select dates to continue</span>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-slate-700 hover:bg-slate-200 rounded-lg font-medium transition"
+              className="px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-200 rounded font-medium transition"
             >
               Cancel
             </button>
             <button
               onClick={handleSend}
               disabled={selectedSlots.length === 0}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition flex items-center gap-2 shadow-md"
+              className="px-4 py-1.5 text-xs bg-blue-600 text-white rounded font-bold hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition flex items-center gap-1.5"
             >
-              <Send size={16} />
+              <Send size={12} />
               Send to Candidate
             </button>
           </div>

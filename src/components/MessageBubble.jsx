@@ -88,7 +88,7 @@ export default function MessageBubble({ message, snapshot, engine, onJumpToInter
               <div className="flex items-start gap-2 mb-2">
                 <CheckCircle2 size={20} className="text-emerald-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <div className="font-bold text-sm text-emerald-900">Interview Scheduled! ✅</div>
+                  <div className="font-bold text-sm text-emerald-900">Interview Scheduled!</div>
                   <div className="text-xs text-emerald-800 mt-1 whitespace-pre-wrap">{message.content}</div>
                 </div>
               </div>
@@ -179,22 +179,14 @@ export default function MessageBubble({ message, snapshot, engine, onJumpToInter
               </div>
             )}
 
-            {/* A/B timeslot buttons */}
+            {/* Add timeslot button */}
             <div className="space-y-2">
-              <div className="text-xs font-bold text-slate-600">c) Add availability for {message.interviewer?.name}:</div>
               <button
                 onClick={() => engine.addConfirmedSlot(message.interviewer, message.slots)}
                 className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition shadow"
               >
                 <CheckCircle2 size={16} />
-                A) Add Confirmed timeslot for {message.interviewer?.name}
-              </button>
-              <button
-                onClick={() => engine.raiseSlotRequest(message.interviewer, message.slots)}
-                className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition shadow"
-              >
-                <Clock size={16} />
-                B) Add Pending request to {message.interviewer?.name}
+                Add Confirmed timeslot for {message.interviewer?.name}
               </button>
             </div>
           </div>
@@ -212,10 +204,7 @@ export default function MessageBubble({ message, snapshot, engine, onJumpToInter
                   </button>
                 ))}
                 <button onClick={() => engine.addConfirmedSlot(item.emp, message.slots)} className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition">
-                  <CheckCircle2 size={13} /> A) Add Confirmed timeslot for {item.emp.name}
-                </button>
-                <button onClick={() => engine.raiseSlotRequest(item.emp, message.slots)} className="w-full py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition">
-                  <Clock size={13} /> B) Add Pending request to {item.emp.name}
+                  <CheckCircle2 size={13} /> Add Confirmed timeslot for {item.emp.name}
                 </button>
               </div>
             ))}
