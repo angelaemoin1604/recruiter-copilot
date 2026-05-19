@@ -6,15 +6,14 @@
   <title>Confirm Interview Availability</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    .date-card { transition: all 0.2s; }
-    .date-card:hover { transform: translateY(-2px); }
-    .date-card.selected { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); }
-    .time-slot { transition: all 0.15s; }
-    .time-slot:hover { transform: scale(1.02); }
+    .date-btn { transition: all 0.2s; cursor: pointer; }
+    .date-btn:hover { transform: scale(1.05); }
+    .time-slot { transition: all 0.15s; cursor: pointer; }
+    .time-slot:hover { transform: translateY(-2px); }
   </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
-  <div id="app" class="container mx-auto px-4 py-8 max-w-5xl"></div>
+<body class="bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 min-h-screen">
+  <div id="app"></div>
 
   <script>
     const SUPABASE_URL = 'https://fbgqqkvufdofbgmtvhmn.supabase.co';
@@ -23,7 +22,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     let selectedDate = null;
-    let selectedTimeSlots = {}; // { date: [slot1, slot2, ...] }
+    let selectedTimeSlots = {};
     let availabilityData = null;
 
     if (!token) {
@@ -70,19 +69,16 @@
         
         availabilityData = data[0];
         
-        // Check if already submitted
         if (availabilityData.status === 'confirmed') {
           showAlreadySubmitted();
           return;
         }
         
-        // Check if expired (48 hours = 172800000 milliseconds)
         const createdAt = new Date(availabilityData.created_at);
         const now = new Date();
         const hoursSinceCreated = (now - createdAt) / (1000 * 60 * 60);
         
         if (hoursSinceCreated > 48) {
-          // Auto-update status to expired
           await supabaseUpdate('availability_requests', { status: 'expired' }, `token=eq.${token}`);
           showExpired();
           return;
@@ -99,8 +95,8 @@
       document.getElementById('app').innerHTML = `
         <div class="flex items-center justify-center min-h-screen">
           <div class="text-center">
-            <div class="animate-spin w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p class="text-gray-600 text-lg font-medium">Loading your availability request...</p>
+            <div class="animate-spin w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-3"></div>
+            <p class="text-gray-600 text-sm font-medium">Loading...</p>
           </div>
         </div>
       `;
@@ -109,14 +105,14 @@
     function showError(message) {
       document.getElementById('app').innerHTML = `
         <div class="flex items-center justify-center min-h-screen px-4">
-          <div class="bg-white rounded-2xl shadow-2xl p-12 text-center max-w-md w-full">
-            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg class="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="bg-white rounded-xl shadow-xl p-8 text-center max-w-md w-full">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
             </div>
-            <h2 class="text-2xl font-bold text-gray-900 mb-3">Request Not Found</h2>
-            <p class="text-gray-600">${message}</p>
+            <h2 class="text-xl font-bold text-gray-900 mb-2">Request Not Found</h2>
+            <p class="text-sm text-gray-600">${message}</p>
           </div>
         </div>
       `;
@@ -125,15 +121,14 @@
     function showAlreadySubmitted() {
       document.getElementById('app').innerHTML = `
         <div class="flex items-center justify-center min-h-screen px-4">
-          <div class="bg-white rounded-2xl shadow-2xl p-12 text-center max-w-md w-full">
-            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="bg-white rounded-xl shadow-xl p-8 text-center max-w-md w-full">
+            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
               </svg>
             </div>
-            <h2 class="text-2xl font-bold text-gray-900 mb-3">Already Confirmed</h2>
-            <p class="text-gray-600 mb-2">Your availability has already been submitted.</p>
-            <p class="text-gray-500 text-sm">If you need to make changes, please contact the recruiter.</p>
+            <h2 class="text-xl font-bold text-gray-900 mb-2">Already Confirmed</h2>
+            <p class="text-sm text-gray-600">Your availability has already been submitted.</p>
           </div>
         </div>
       `;
@@ -142,18 +137,15 @@
     function showExpired() {
       document.getElementById('app').innerHTML = `
         <div class="flex items-center justify-center min-h-screen px-4">
-          <div class="bg-white rounded-2xl shadow-2xl p-12 text-center max-w-md w-full">
-            <div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg class="w-12 h-12 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="bg-white rounded-xl shadow-xl p-8 text-center max-w-md w-full">
+            <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-10 h-10 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
             </div>
-            <h2 class="text-2xl font-bold text-gray-900 mb-3">Availability Request Expired</h2>
-            <p class="text-gray-600 mb-4">This availability confirmation link has expired. The 48-hour response window has passed.</p>
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
-              <p class="text-sm font-semibold text-blue-900 mb-2">What to do next:</p>
-              <p class="text-sm text-blue-800">Please contact the recruiter directly to reschedule your interview availability.</p>
-            </div>
+            <h2 class="text-xl font-bold text-gray-900 mb-2">Request Expired</h2>
+            <p class="text-sm text-gray-600 mb-3">This link has expired (48-hour window passed).</p>
+            <p class="text-xs text-gray-500">Please contact the recruiter to reschedule.</p>
           </div>
         </div>
       `;
@@ -189,8 +181,183 @@
       return `${formatHour(startHour)} - ${formatHour(endHour)}`;
     }
 
+    function renderCalendar(availableDates) {
+      // Get the month/year from first available date
+      const firstDate = new Date(availableDates[0].date + 'T00:00:00');
+      const month = firstDate.getMonth();
+      const year = firstDate.getFullYear();
+      
+      // Create lookup map for available dates
+      const availableDateMap = {};
+      availableDates.forEach(d => {
+        availableDateMap[d.date] = true;
+      });
+      
+      // Month navigation
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      
+      // Get calendar grid
+      const firstDayOfMonth = new Date(year, month, 1);
+      const lastDayOfMonth = new Date(year, month + 1, 0);
+      const startDay = firstDayOfMonth.getDay(); // 0 = Sunday
+      const daysInMonth = lastDayOfMonth.getDate();
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      let calendarHTML = `
+        <div class="mb-2">
+          <div class="text-center font-semibold text-gray-900 text-base mb-2">
+            ${monthNames[month]} ${year}
+          </div>
+          
+          <!-- Day headers -->
+          <div class="grid grid-cols-7 gap-0 mb-1">
+            ${['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => `
+              <div class="text-sm font-semibold text-gray-600 text-center py-1">${day}</div>
+            `).join('')}
+          </div>
+          
+          <!-- Calendar days -->
+          <div class="grid grid-cols-7 gap-0 border border-gray-200">
+      `;
+      
+      // Add empty cells for days before month starts
+      for (let i = 0; i < startDay; i++) {
+        calendarHTML += '<div class="w-10 h-10 border border-gray-100"></div>';
+      }
+      
+      // Add days of month
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const isAvailable = availableDateMap[dateStr];
+        const isSelected = selectedDate === dateStr;
+        const hasSelections = selectedTimeSlots[dateStr] && selectedTimeSlots[dateStr].length > 0;
+        const currentDate = new Date(year, month, day);
+        const isPast = currentDate < today;
+        
+        if (isAvailable) {
+          // Available date - clickable
+          calendarHTML += `
+            <button 
+              onclick="selectDate('${dateStr}')"
+              class="w-10 h-10 border border-gray-200 text-center font-bold text-sm transition flex items-center justify-center ${
+                isSelected 
+                  ? 'bg-blue-600 text-white' 
+                  : hasSelections
+                    ? 'bg-green-100 border-green-400 text-green-900 hover:bg-green-200'
+                    : 'bg-blue-50 text-blue-900 hover:bg-blue-100'
+              }"
+            >
+              <div>
+                <div class="leading-none">${day}</div>
+                ${hasSelections ? '<div class="text-xs leading-none">✓</div>' : ''}
+              </div>
+            </button>
+          `;
+        } else {
+          // Not available - grayed out
+          calendarHTML += `
+            <div class="w-10 h-10 border border-gray-100 text-center text-sm ${
+              isPast ? 'text-gray-300' : 'text-gray-400'
+            } flex items-center justify-center cursor-not-allowed bg-gray-50">
+              ${day}
+            </div>
+          `;
+        }
+      }
+      
+      calendarHTML += `
+          </div>
+        </div>
+        
+        <!-- Legend -->
+        <div class="mt-3 pt-2 border-t border-gray-200 flex gap-3 text-xs">
+          <div class="flex items-center gap-1">
+            <div class="w-3 h-3 bg-blue-50 border border-blue-300"></div>
+            <span class="text-gray-700">Available</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <div class="w-3 h-3 bg-green-100 border border-green-400"></div>
+            <span class="text-gray-700">Selected</span>
+          </div>
+        </div>
+        
+        <!-- Selected Availability (moved here below calendar) -->
+        <div id="calendarSummary" class="mt-3"></div>
+      `;
+      
+      return calendarHTML;
+    }
+
+    function updateCalendarSummary() {
+      const summaryDiv = document.getElementById('calendarSummary');
+      if (!summaryDiv) return;
+      
+      const totalSelected = Object.values(selectedTimeSlots).reduce((sum, slots) => sum + slots.length, 0);
+      
+      if (totalSelected === 0) {
+        summaryDiv.innerHTML = '';
+        return;
+      }
+      
+      let html = `
+        <div class="bg-green-50 border-2 border-green-500 rounded-lg p-2 mt-2">
+          <div class="flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 class="font-bold text-green-900 text-xs">Selected Slots</h3>
+          </div>
+          <div class="space-y-1.5 max-h-32 overflow-y-auto">
+      `;
+      
+      Object.entries(selectedTimeSlots).forEach(([date, slots]) => {
+        if (slots.length === 0) return;
+        const dateObj = new Date(date + 'T00:00:00');
+        const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        
+        html += `
+          <div class="bg-white rounded p-1.5 border border-green-200">
+            <div class="font-semibold text-green-900 text-xs mb-1">${dateStr}</div>
+            ${slots.map(s => `
+              <div class="flex items-center justify-between text-xs text-green-700 py-0.5 hover:bg-green-50 rounded px-1">
+                <div class="flex items-center gap-1">
+                  <svg class="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                  </svg>
+                  <span>${s.display}</span>
+                </div>
+                <button 
+                  onclick="removeTimeSlot('${date}', '${s.start}')"
+                  class="text-red-500 hover:text-red-700 hover:bg-red-50 rounded p-0.5"
+                  title="Remove this slot"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      });
+      
+      html += '</div></div>';
+      summaryDiv.innerHTML = html;
+    }
+
+    function removeTimeSlot(date, start) {
+      if (selectedTimeSlots[date]) {
+        selectedTimeSlots[date] = selectedTimeSlots[date].filter(s => s.start !== start);
+        if (selectedTimeSlots[date].length === 0) {
+          delete selectedTimeSlots[date];
+        }
+      }
+      renderMainPage();
+    }
+
     function renderMainPage() {
-      // Group slots by date
       const dateGroups = {};
       availabilityData.slots.forEach(slot => {
         if (!dateGroups[slot.date]) {
@@ -202,82 +369,81 @@
         }
       });
 
-      const dates = Object.values(dateGroups);
+      const dates = Object.values(dateGroups).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      if (!selectedDate && dates.length > 0) {
+        selectedDate = dates[0].date;
+      }
+
+      const totalSelected = Object.values(selectedTimeSlots).reduce((sum, slots) => sum + slots.length, 0);
 
       document.getElementById('app').innerHTML = `
-        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="container mx-auto px-4 py-2 max-w-6xl" style="height: 100vh; display: flex; flex-direction: column;">
           <!-- Header -->
-          <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white px-8 py-8">
-            <h1 class="text-3xl md:text-4xl font-bold mb-3">Confirm Your Interview Availability</h1>
-            <p class="text-blue-100 text-lg">Hi <span class="font-semibold">${availabilityData.candidate_name}</span>, please select when you're available for <span class="font-semibold">${availabilityData.job_title}</span></p>
+          <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl p-3 mb-2 shadow-lg">
+            <h1 class="text-lg font-bold mb-0.5">Confirm Your Interview Availability</h1>
+            <p class="text-xs text-blue-100">Hi ${availabilityData.candidate_name}, please select when you're available for <strong>${availabilityData.job_title}</strong></p>
           </div>
 
           <!-- Instructions -->
-          <div class="px-8 py-6 bg-blue-50 border-b border-blue-200">
-            <div class="flex items-start gap-3">
-              <svg class="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          <div class="bg-blue-50 border-l-4 border-blue-500 p-1.5 mb-2 rounded">
+            <div class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
               </svg>
-              <div class="text-blue-900">
-                <p class="font-semibold mb-1">How to confirm your availability:</p>
-                <ol class="text-sm space-y-1 list-decimal list-inside">
-                  <li>Select one or multiple dates and time slots according to your availability</li>
-                  <li>Click "Confirm My Availability" to submit</li>
-                </ol>
+              <div class="text-xs text-blue-900">
+                <strong>How to confirm:</strong> Click date → select slots → remove with ✕ → click Confirm.
               </div>
             </div>
           </div>
 
-          <!-- Date Selection -->
-          <div class="px-8 py-8">
-            <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
-              </svg>
-              Step 1: Select Your Available Day(s)
-            </h2>
+          <!-- Main Layout: Calendar (Left) + Time Slots (Right) -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-3" style="min-height: 480px; margin-bottom: 50px;">
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8" id="datesList">
-              ${dates.map(dateInfo => renderDateCard(dateInfo)).join('')}
-            </div>
-
-            <!-- Time Slots Section -->
-            <div id="timeSlotsSection" class="hidden">
-              <div class="border-t border-gray-200 pt-8 mb-8">
-                <h2 class="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-                  <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
-                  </svg>
-                  Step 2: Select Your Available Time(s)
-                </h2>
-                <p class="text-gray-600 mb-1 font-medium" id="selectedDateDisplay"></p>
-                <p class="text-sm text-gray-500 mb-6">Select all 1-hour slots when you're available. You can choose multiple slots as backup options.</p>
-                
-                <div id="timeSlotsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <!-- Time slots populated here -->
-                </div>
-              </div>
-            </div>
-
-            <!-- Selected Summary -->
-            <div id="selectedSummary" class="hidden bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6 mb-6">
-              <h3 class="text-lg font-bold text-green-900 mb-3 flex items-center gap-2">
-                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+            <!-- LEFT: Calendar Grid -->
+            <div class="bg-white rounded-xl shadow-md p-3 flex flex-col h-full">
+              <h2 class="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                 </svg>
-                Your Selected Availability
-              </h3>
-              <div id="summaryList" class="space-y-2"></div>
+                Step 1: Select Date
+              </h2>
+
+              ${renderCalendar(dates)}
             </div>
 
-            <!-- Confirm Button -->
+            <!-- RIGHT: Time Slots -->
+            <div class="bg-white rounded-xl shadow-md p-3 h-full overflow-hidden flex flex-col">
+              <h2 class="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Step 2: Select Time Slot(s)
+              </h2>
+
+              ${selectedDate ? renderTimeSlots() : `
+                <div class="text-center py-16 text-gray-400">
+                  <svg class="w-16 h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <p class="text-sm">Select a date to view available time slots</p>
+                </div>
+              `}
+            </div>
+          </div>
+
+          <!-- Confirm Button - CENTERED BELOW GRID -->
+          <div class="mt-2 pb-2 flex justify-center">
             <button 
-              id="confirmBtn"
-              onclick="confirmAvailability()"
-              disabled
-              class="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-3"
+              onclick="confirmAvailability()" 
+              ${totalSelected === 0 ? 'disabled' : ''}
+              class="px-6 py-2.5 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg ${
+                totalSelected > 0 
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700' 
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }"
             >
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
               Confirm My Availability
@@ -285,100 +451,55 @@
           </div>
         </div>
       `;
-
-      updateUI();
+      
+      // Update calendar summary after rendering
+      updateCalendarSummary();
     }
 
-    function renderDateCard(dateInfo) {
-      const date = new Date(dateInfo.date + 'T00:00:00');
-      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-      const day = date.getDate();
-      const month = date.toLocaleDateString('en-US', { month: 'long' });
-      const year = date.getFullYear();
-      const isSelected = selectedDate === dateInfo.date;
+    function renderTimeSlots() {
+      const slot = availabilityData.slots.find(s => s.date === selectedDate);
+      if (!slot) return '<p class="text-sm text-gray-500">No time slots available</p>';
+
+      const hourlySlots = generateHourlySlots(slot.start, slot.end);
+      const selected = selectedTimeSlots[selectedDate] || [];
+
+      const dateObj = new Date(selectedDate + 'T00:00:00');
+      const dateString = dateObj.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        month: 'long', 
+        day: 'numeric' 
+      });
 
       return `
-        <button 
-          onclick="selectDate('${dateInfo.date}')"
-          class="date-card text-left p-6 rounded-xl border-2 transition-all ${
-            isSelected 
-              ? 'border-blue-600 bg-blue-50 selected shadow-lg' 
-              : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
-          }"
-        >
-          <div class="flex items-center justify-between mb-2">
-            <div class="text-lg font-bold ${isSelected ? 'text-blue-600' : 'text-gray-900'}">${day} ${month} ${year}, ${dayName}</div>
-            ${isSelected ? `
-              <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 ml-3">
-                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                </svg>
-              </div>
-            ` : ''}
-          </div>
-          ${(selectedTimeSlots[dateInfo.date] || []).length > 0 ? `
-            <div class="mt-3 pt-3 border-t ${isSelected ? 'border-blue-200' : 'border-gray-200'}">
-              <div class="text-xs font-semibold ${isSelected ? 'text-blue-600' : 'text-green-600'}">
-                ✓ ${selectedTimeSlots[dateInfo.date].length} slot(s) selected
-              </div>
-            </div>
-          ` : ''}
-        </button>
+        <div class="mb-2 pb-1 border-b border-gray-200">
+          <p class="text-sm text-gray-700 font-semibold">${dateString}</p>
+          <p class="text-xs text-gray-500">Select 1-hour slots</p>
+        </div>
+        <div class="grid grid-cols-2 gap-2 overflow-y-auto pr-1" style="max-height: 350px;">
+          ${hourlySlots.map(timeSlot => {
+            const isSelected = selected.some(s => s.start === timeSlot.start);
+            return `
+              <button 
+                onclick="toggleTimeSlot('${selectedDate}', '${timeSlot.start}', '${timeSlot.end}', '${timeSlot.display}')"
+                class="time-slot p-2 rounded-lg border-2 text-center font-semibold text-sm transition ${
+                  isSelected 
+                    ? 'bg-gradient-to-br from-blue-600 to-indigo-600 border-blue-600 text-white shadow-md' 
+                    : 'bg-white border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
+                }"
+              >
+                <div class="text-xs ${isSelected ? 'text-blue-100' : 'text-gray-500'}">🕒</div>
+                <div class="leading-tight">${timeSlot.display}</div>
+                ${isSelected ? '<div class="text-xs text-blue-100 mt-1">✓</div>' : ''}
+              </button>
+            `;
+          }).join('')}
+        </div>
       `;
     }
 
     function selectDate(date) {
       selectedDate = date;
       renderMainPage();
-      
-      // Show time slots
-      const slot = availabilityData.slots.find(s => s.date === date);
-      if (slot) {
-        const hourlySlots = generateHourlySlots(slot.start, slot.end);
-        renderTimeSlots(date, hourlySlots);
-      }
-      
-      // Scroll to time slots
-      setTimeout(() => {
-        document.getElementById('timeSlotsSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 100);
-    }
-
-    function renderTimeSlots(date, slots) {
-      const section = document.getElementById('timeSlotsSection');
-      const displayElem = document.getElementById('selectedDateDisplay');
-      const listElem = document.getElementById('timeSlotsList');
-      
-      const dateObj = new Date(date + 'T00:00:00');
-      const dateString = dateObj.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        month: 'long', 
-        day: 'numeric', 
-        year: 'numeric' 
-      });
-      
-      displayElem.textContent = dateString;
-      section.classList.remove('hidden');
-      
-      const selected = selectedTimeSlots[date] || [];
-      
-      listElem.innerHTML = slots.map(slot => {
-        const isSelected = selected.some(s => s.start === slot.start);
-        return `
-          <button 
-            onclick="toggleTimeSlot('${date}', '${slot.start}', '${slot.end}', '${slot.display}')"
-            class="time-slot p-4 rounded-lg border-2 text-center font-semibold transition-all ${
-              isSelected 
-                ? 'bg-gradient-to-br from-blue-600 to-indigo-600 border-blue-600 text-white shadow-lg' 
-                : 'bg-white border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
-            }"
-          >
-            <div class="text-sm ${isSelected ? 'text-blue-100' : 'text-gray-500'} mb-1">📅</div>
-            <div class="${isSelected ? 'text-white' : 'text-gray-900'}">${slot.display}</div>
-            ${isSelected ? '<div class="text-xs text-blue-100 mt-2">✓ Selected</div>' : ''}
-          </button>
-        `;
-      }).join('');
     }
 
     function toggleTimeSlot(date, start, end, display) {
@@ -395,64 +516,9 @@
       }
       
       renderMainPage();
-      
-      // Re-render time slots for current date
-      const slot = availabilityData.slots.find(s => s.date === date);
-      if (slot) {
-        const hourlySlots = generateHourlySlots(slot.start, slot.end);
-        renderTimeSlots(date, hourlySlots);
-      }
-    }
-
-    function updateUI() {
-      const confirmBtn = document.getElementById('confirmBtn');
-      const summary = document.getElementById('selectedSummary');
-      const summaryList = document.getElementById('summaryList');
-      
-      // Count total selected slots
-      const totalSelected = Object.values(selectedTimeSlots).reduce((sum, slots) => sum + slots.length, 0);
-      
-      confirmBtn.disabled = totalSelected === 0;
-      
-      if (totalSelected > 0) {
-        summary.classList.remove('hidden');
-        
-        let summaryHTML = '';
-        Object.entries(selectedTimeSlots).forEach(([date, slots]) => {
-          if (slots.length > 0) {
-            const dateObj = new Date(date + 'T00:00:00');
-            const dateStr = dateObj.toLocaleDateString('en-US', { 
-              weekday: 'short', 
-              month: 'short', 
-              day: 'numeric' 
-            });
-            
-            summaryHTML += `
-              <div class="bg-white rounded-lg p-4 border border-green-200">
-                <div class="font-semibold text-green-900 mb-2">${dateStr}</div>
-                <div class="space-y-1">
-                  ${slots.map(s => `
-                    <div class="text-sm text-green-800 flex items-center gap-2">
-                      <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                      </svg>
-                      ${s.display}
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
-            `;
-          }
-        });
-        
-        summaryList.innerHTML = summaryHTML;
-      } else {
-        summary.classList.add('hidden');
-      }
     }
 
     async function confirmAvailability() {
-      // Flatten all selected slots
       const allSlots = [];
       Object.values(selectedTimeSlots).forEach(slots => {
         allSlots.push(...slots);
@@ -463,8 +529,7 @@
         return;
       }
       
-      // Disable button and show loading
-      const btn = document.getElementById('confirmBtn');
+      const btn = event.target;
       btn.disabled = true;
       btn.innerHTML = `
         <svg class="animate-spin w-6 h-6" fill="none" viewBox="0 0 24 24">
@@ -488,7 +553,7 @@
         showSuccess();
       } catch (err) {
         console.error('Error:', err);
-        alert('Failed to confirm availability. Please try again.');
+        alert('Failed to confirm. Please try again.');
         btn.disabled = false;
         btn.innerHTML = `
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -502,17 +567,17 @@
     function showSuccess() {
       document.getElementById('app').innerHTML = `
         <div class="flex items-center justify-center min-h-screen px-4">
-          <div class="bg-white rounded-2xl shadow-2xl p-12 text-center max-w-lg w-full">
-            <div class="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
-              <svg class="w-14 h-14 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="bg-white rounded-xl shadow-xl p-10 text-center max-w-lg w-full">
+            <div class="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-5 animate-bounce">
+              <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
               </svg>
             </div>
-            <h2 class="text-3xl font-bold text-gray-900 mb-4">Thank You!</h2>
-            <p class="text-lg text-gray-600 mb-2">Your availability has been confirmed successfully.</p>
-            <p class="text-gray-500">The recruiter will contact you shortly to schedule your interview.</p>
-            <div class="mt-8 pt-8 border-t border-gray-200">
-              <p class="text-sm text-gray-400">You can now close this page.</p>
+            <h2 class="text-2xl font-bold text-gray-900 mb-3">Thank You!</h2>
+            <p class="text-base text-gray-600 mb-2">Your availability has been confirmed successfully.</p>
+            <p class="text-sm text-gray-500">The recruiter will contact you shortly to schedule your interview.</p>
+            <div class="mt-6 pt-6 border-t border-gray-200">
+              <p class="text-xs text-gray-400">You can now close this page.</p>
             </div>
           </div>
         </div>
