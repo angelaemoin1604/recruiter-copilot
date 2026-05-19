@@ -179,14 +179,21 @@ export default function MessageBubble({ message, snapshot, engine, onJumpToInter
               </div>
             )}
 
-            {/* Add timeslot button */}
-            <div className="space-y-2">
+            {/* Add timeslot + Schedule anyway buttons */}
+            <div className="space-y-1.5">
               <button
                 onClick={() => engine.addConfirmedSlot(message.interviewer, message.slots)}
-                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition shadow"
+                className="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition shadow"
               >
-                <CheckCircle2 size={16} />
+                <CheckCircle2 size={15} />
                 Add Confirmed timeslot for {message.interviewer?.name}
+              </button>
+              <button
+                onClick={() => engine.scheduleAnyway(message.interviewer, message.slots, message.candidate)}
+                className="w-full py-2 px-4 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 transition border-2 border-slate-300"
+              >
+                <ArrowRight size={15} />
+                Schedule anyway
               </button>
             </div>
           </div>
@@ -203,8 +210,11 @@ export default function MessageBubble({ message, snapshot, engine, onJumpToInter
                     <CheckCircle2 size={10} className="text-emerald-600" /><span>{formatDateDisplay(s.slot_date)}, {s.start_time}–{s.end_time}</span><ArrowRight size={9} className="ml-auto" />
                   </button>
                 ))}
-                <button onClick={() => engine.addConfirmedSlot(item.emp, message.slots)} className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition">
+                <button onClick={() => engine.addConfirmedSlot(item.emp, message.slots)} className="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition">
                   <CheckCircle2 size={13} /> Add Confirmed timeslot for {item.emp.name}
+                </button>
+                <button onClick={() => engine.scheduleAnyway(item.emp, message.slots, message.candidate)} className="w-full py-1.5 px-3 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition border border-slate-300">
+                  <ArrowRight size={12} /> Schedule anyway
                 </button>
               </div>
             ))}

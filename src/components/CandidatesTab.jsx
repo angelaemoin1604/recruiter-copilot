@@ -16,7 +16,56 @@ export default function CandidatesTab({ snapshot, highlightCandidates = [], curr
   const [candidateDrawer, setCandidateDrawer] = useState(null);  // NEW STATE
   const [previewFor, setPreviewFor] = useState(null);
   const [availabilityPopup, setAvailabilityPopup] = useState(null); // Now stores { candidate, job }
+  const [confirmedSlots, setConfirmedSlots] = useState([]);
   const toast = useToast();
+
+  // Fetch confirmed slots when availability popup opens
+  useEffect(() => {
+    if (!availabilityPopup) {
+      setConfirmedSlots([]);
+      return;
+    }
+    const fetchConfirmed = async () => {
+      try {
+        const { data, error } = await DB.supabase
+          .from('availability_requests')
+          .select('slots, selected_slot')
+          .eq('candidate_id', availabilityPopup.candidate.rh_id)
+          .eq('status', 'confirmed');
+        
+        if (!error && data) {
+          // Extract all confirmed dates from slots
+          const dates = [];
+          data.forEach(req => {
+            if (req.selected_slot) {
+              // If there's a specific selected slot
+              try {
+                const slot = typeof req.selected_slot === 'string' ? JSON.parse(req.selected_slot) : req.selected_slot;
+                if (Array.isArray(slot)) {
+                  slot.forEach(s => s.date && dates.push(s.date));
+                } else if (slot.date) {
+                  dates.push(slot.date);
+                }
+              } catch(e) {}
+            }
+            if (req.slots) {
+              // Also check all slots from confirmed requests
+              try {
+                const slots = typeof req.slots === 'string' ? JSON.parse(req.slots) : req.slots;
+                if (Array.isArray(slots)) {
+                  slots.forEach(s => s.date && dates.push(s.date));
+                }
+              } catch(e) {}
+            }
+          });
+          setConfirmedSlots([...new Set(dates)]);
+        }
+      } catch (err) {
+        console.error('Error fetching confirmed slots:', err);
+      }
+    };
+    fetchConfirmed();
+  }, [availabilityPopup]);
 
   // Get all unique candidates for navigation
   const allCandidates = snapshot.candidates;
@@ -239,6 +288,7 @@ export default function CandidatesTab({ snapshot, highlightCandidates = [], curr
           job={availabilityPopup.job}
           onClose={() => setAvailabilityPopup(null)}
           onSend={handleSendAvailability}
+          confirmedSlots={confirmedSlots}
         />
       )}
     </div>

@@ -12,6 +12,23 @@ export default function AvailabilityRequestPopup({ candidate, onClose }) {
 
   if (!candidate) return null;
 
+  // Navigate months without losing state
+  const goToPrevMonth = () => {
+    setCurrentMonth(prev => {
+      const d = new Date(prev);
+      d.setMonth(d.getMonth() - 1);
+      return d;
+    });
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth(prev => {
+      const d = new Date(prev);
+      d.setMonth(d.getMonth() + 1);
+      return d;
+    });
+  };
+
   // Generate calendar days
   const generateCalendarDays = () => {
     const days = [];
@@ -130,13 +147,13 @@ export default function AvailabilityRequestPopup({ candidate, onClose }) {
           {/* Calendar */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
-              <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() - 1)))} className="p-2 hover:bg-gray-100 rounded">
+              <button onClick={goToPrevMonth} className="p-2 hover:bg-gray-100 rounded">
                 <ChevronLeft size={20} />
               </button>
               <h3 className="text-lg font-bold">
                 {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </h3>
-              <button onClick={() => setCurrentMonth(new Date(currentMonth.setMonth(currentMonth.getMonth() + 1)))} className="p-2 hover:bg-gray-100 rounded">
+              <button onClick={goToNextMonth} className="p-2 hover:bg-gray-100 rounded">
                 <ChevronRight size={20} />
               </button>
             </div>
@@ -151,7 +168,12 @@ export default function AvailabilityRequestPopup({ candidate, onClose }) {
             <div className="grid grid-cols-7 gap-2">
               {calendarDays.map((day, i) => {
                 const isSelected = selectedDates.includes(day.dateStr);
-                const isDisabled = day.isPast || !day.isCurrentMonth;
+                const isPast = day.isPast;
+                const isOtherMonth = !day.isCurrentMonth;
+                const isDisabled = isPast;
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const isToday = day.date.getTime() === today.getTime();
 
                 return (
                   <button
@@ -172,7 +194,11 @@ export default function AvailabilityRequestPopup({ candidate, onClose }) {
                         ? 'bg-gradient-to-br from-blue-700 to-indigo-700 text-white shadow-lg' 
                         : isDisabled
                           ? 'text-gray-300 cursor-not-allowed'
-                          : 'bg-gray-50 hover:bg-blue-50 text-gray-900'
+                          : isOtherMonth
+                            ? 'text-gray-400 hover:bg-blue-50'
+                            : isToday
+                              ? 'bg-orange-50 ring-2 ring-orange-300 text-gray-900 hover:bg-orange-100'
+                              : 'bg-gray-50 hover:bg-blue-50 text-gray-900'
                       }
                     `}
                   >
@@ -220,9 +246,18 @@ export default function AvailabilityRequestPopup({ candidate, onClose }) {
                 Selected Dates ({selectedDates.length}):
               </p>
               <div className="flex flex-wrap gap-2">
-                {selectedDates.map(dateStr => (
-                  <span key={dateStr} className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-medium">
-                    {new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {[...selectedDates].sort().map(dateStr => (
+                  <span 
+                    key={dateStr} 
+                    className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1"
+                  >
+                    {new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    <button 
+                      onClick={() => setSelectedDates(prev => prev.filter(d => d !== dateStr))}
+                      className="ml-1 hover:bg-blue-800 rounded-full w-4 h-4 flex items-center justify-center text-xs"
+                    >
+                      ×
+                    </button>
                   </span>
                 ))}
               </div>

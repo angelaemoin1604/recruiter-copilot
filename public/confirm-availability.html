@@ -24,6 +24,8 @@
     let selectedDate = null;
     let selectedTimeSlots = {};
     let availabilityData = null;
+    let currentViewMonth = null; // Will be set when data loads
+    let availableMonths = []; // All months that have available dates
 
     if (!token) {
       showError('Invalid or missing confirmation link');
@@ -182,49 +184,76 @@
     }
 
     function renderCalendar(availableDates) {
-      // Get the month/year from first available date
-      const firstDate = new Date(availableDates[0].date + 'T00:00:00');
-      const month = firstDate.getMonth();
-      const year = firstDate.getFullYear();
+      // Use currentViewMonth for display
+      const month = currentViewMonth.getMonth();
+      const year = currentViewMonth.getFullYear();
       
-      // Create lookup map for available dates
+      // Create lookup map for available dates (ALL months)
       const availableDateMap = {};
       availableDates.forEach(d => {
         availableDateMap[d.date] = true;
       });
       
-      // Month navigation
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
       
-      // Get calendar grid
+      // Get calendar grid for current view month
       const firstDayOfMonth = new Date(year, month, 1);
       const lastDayOfMonth = new Date(year, month + 1, 0);
-      const startDay = firstDayOfMonth.getDay(); // 0 = Sunday
+      const startDay = firstDayOfMonth.getDay();
       const daysInMonth = lastDayOfMonth.getDate();
       
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
+      // Check if there are dates in other months for showing arrows
+      const hasDatesBefore = availableDates.some(d => {
+        const dt = new Date(d.date + 'T00:00:00');
+        return dt.getFullYear() < year || (dt.getFullYear() === year && dt.getMonth() < month);
+      });
+      const hasDatesAfter = availableDates.some(d => {
+        const dt = new Date(d.date + 'T00:00:00');
+        return dt.getFullYear() > year || (dt.getFullYear() === year && dt.getMonth() > month);
+      });
+      
+      // Count available dates in this month
+      const availableInThisMonth = availableDates.filter(d => {
+        const dt = new Date(d.date + 'T00:00:00');
+        return dt.getMonth() === month && dt.getFullYear() === year;
+      }).length;
+
       let calendarHTML = `
-        <div class="mb-2">
-          <div class="text-center font-semibold text-gray-900 text-base mb-2">
-            ${monthNames[month]} ${year}
+        <!-- Month Navigation -->
+        <div class="flex items-center justify-between mb-3">
+          <button onclick="navigateMonth(-1)" class="p-1.5 rounded hover:bg-gray-100 transition ${hasDatesBefore ? '' : 'invisible'}">
+            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+          </button>
+          <div class="text-center">
+            <div class="font-bold text-gray-900 text-sm">${monthNames[month]} ${year}</div>
+            ${availableInThisMonth > 0 ? `<div class="text-xs text-blue-600">${availableInThisMonth} date${availableInThisMonth > 1 ? 's' : ''} available</div>` : `<div class="text-xs text-gray-400">No dates this month</div>`}
           </div>
-          
-          <!-- Day headers -->
-          <div class="grid grid-cols-7 gap-0 mb-1">
-            ${['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => `
-              <div class="text-sm font-semibold text-gray-600 text-center py-1">${day}</div>
-            `).join('')}
-          </div>
-          
-          <!-- Calendar days -->
-          <div class="grid grid-cols-7 gap-0 border border-gray-200">
+          <button onclick="navigateMonth(1)" class="p-1.5 rounded hover:bg-gray-100 transition ${hasDatesAfter ? '' : 'invisible'}">
+            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Day headers -->
+        <div class="grid grid-cols-7 mb-1">
+          ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => `
+            <div class="text-xs font-semibold text-gray-500 text-center py-1">${day}</div>
+          `).join('')}
+        </div>
+        
+        <!-- Calendar days -->
+        <div class="grid grid-cols-7 border-t border-gray-200">
       `;
       
       // Add empty cells for days before month starts
       for (let i = 0; i < startDay; i++) {
-        calendarHTML += '<div class="w-10 h-10 border border-gray-100"></div>';
+        calendarHTML += '<div class="py-2 text-center text-xs text-gray-300 border-b border-gray-100"></div>';
       }
       
       // Add days of month
@@ -237,54 +266,48 @@
         const isPast = currentDate < today;
         
         if (isAvailable) {
-          // Available date - clickable
           calendarHTML += `
             <button 
               onclick="selectDate('${dateStr}')"
-              class="w-10 h-10 border border-gray-200 text-center font-bold text-sm transition flex items-center justify-center ${
+              class="py-2 text-center text-sm font-bold border-b border-gray-100 transition cursor-pointer ${
                 isSelected 
                   ? 'bg-blue-600 text-white' 
                   : hasSelections
-                    ? 'bg-green-100 border-green-400 text-green-900 hover:bg-green-200'
-                    : 'bg-blue-50 text-blue-900 hover:bg-blue-100'
+                    ? 'bg-green-100 text-green-800 ring-1 ring-green-400'
+                    : 'bg-blue-50 text-blue-700 ring-1 ring-blue-200 hover:bg-blue-100'
               }"
-            >
-              <div>
-                <div class="leading-none">${day}</div>
-                ${hasSelections ? '<div class="text-xs leading-none">✓</div>' : ''}
-              </div>
-            </button>
+            >${day}</button>
           `;
         } else {
-          // Not available - grayed out
           calendarHTML += `
-            <div class="w-10 h-10 border border-gray-100 text-center text-sm ${
+            <div class="py-2 text-center text-sm border-b border-gray-100 ${
               isPast ? 'text-gray-300' : 'text-gray-400'
-            } flex items-center justify-center cursor-not-allowed bg-gray-50">
-              ${day}
-            </div>
+            }">${day}</div>
           `;
         }
       }
       
       calendarHTML += `
-          </div>
         </div>
         
         <!-- Legend -->
-        <div class="mt-3 pt-2 border-t border-gray-200 flex gap-3 text-xs">
+        <div class="mt-2 flex gap-4 text-xs text-gray-500">
           <div class="flex items-center gap-1">
-            <div class="w-3 h-3 bg-blue-50 border border-blue-300"></div>
-            <span class="text-gray-700">Available</span>
+            <div class="w-3 h-3 bg-blue-50 ring-1 ring-blue-200 rounded-sm"></div>
+            <span>Available dates</span>
           </div>
           <div class="flex items-center gap-1">
-            <div class="w-3 h-3 bg-green-100 border border-green-400"></div>
-            <span class="text-gray-700">Selected</span>
+            <div class="w-3 h-3 bg-blue-600 rounded-sm"></div>
+            <span>Currently viewing</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <div class="w-3 h-3 bg-green-100 ring-1 ring-green-400 rounded-sm"></div>
+            <span>Slots confirmed</span>
           </div>
         </div>
         
-        <!-- Selected Availability (moved here below calendar) -->
-        <div id="calendarSummary" class="mt-3"></div>
+        <!-- Selected Slots Summary -->
+        <div id="calendarSummary" class="mt-2 flex-1 overflow-y-auto"></div>
       `;
       
       return calendarHTML;
@@ -357,6 +380,13 @@
       renderMainPage();
     }
 
+    function navigateMonth(direction) {
+      const d = new Date(currentViewMonth);
+      d.setMonth(d.getMonth() + direction);
+      currentViewMonth = d;
+      renderMainPage();
+    }
+
     function renderMainPage() {
       const dateGroups = {};
       availabilityData.slots.forEach(slot => {
@@ -371,6 +401,15 @@
 
       const dates = Object.values(dateGroups).sort((a, b) => new Date(a.date) - new Date(b.date));
 
+      // Compute available months
+      availableMonths = [...new Set(dates.map(d => d.date.substring(0, 7)))]; // ["2026-05", "2026-06"]
+
+      // Set initial view month if not set
+      if (!currentViewMonth && dates.length > 0) {
+        const first = new Date(dates[0].date + 'T00:00:00');
+        currentViewMonth = new Date(first.getFullYear(), first.getMonth(), 1);
+      }
+
       if (!selectedDate && dates.length > 0) {
         selectedDate = dates[0].date;
       }
@@ -378,76 +417,94 @@
       const totalSelected = Object.values(selectedTimeSlots).reduce((sum, slots) => sum + slots.length, 0);
 
       document.getElementById('app').innerHTML = `
-        <div class="container mx-auto px-4 py-2 max-w-6xl" style="height: 100vh; display: flex; flex-direction: column;">
+        <div class="container mx-auto px-3 py-2 max-w-6xl" style="height: 100vh; display: flex; flex-direction: column; overflow: hidden;">
           <!-- Header -->
-          <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl p-3 mb-2 shadow-lg">
-            <h1 class="text-lg font-bold mb-0.5">Confirm Your Interview Availability</h1>
+          <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg p-3 mb-2 shadow-lg flex-shrink-0">
+            <h1 class="text-lg font-bold">Confirm Your Interview Availability</h1>
             <p class="text-xs text-blue-100">Hi ${availabilityData.candidate_name}, please select when you're available for <strong>${availabilityData.job_title}</strong></p>
           </div>
 
           <!-- Instructions -->
-          <div class="bg-blue-50 border-l-4 border-blue-500 p-1.5 mb-2 rounded">
-            <div class="flex items-start gap-2">
-              <svg class="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+          <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-3 mb-2 flex-shrink-0">
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
               </svg>
-              <div class="text-xs text-blue-900">
-                <strong>How to confirm:</strong> Click date → select slots → remove with ✕ → click Confirm.
-              </div>
+              <p class="text-xs text-blue-900"><strong>How it works:</strong> Choose your preferred dates from the highlighted dates shared by the recruiter, select available time slots, then click confirm.</p>
             </div>
           </div>
 
-          <!-- Main Layout: Calendar (Left) + Time Slots (Right) -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-3" style="min-height: 480px; margin-bottom: 50px;">
-            
-            <!-- LEFT: Calendar Grid -->
-            <div class="bg-white rounded-xl shadow-md p-3 flex flex-col h-full">
-              <h2 class="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
-                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                </svg>
-                Step 1: Select Date
-              </h2>
+          <!-- Available Months Summary -->
+          ${availableMonths.length > 1 ? `
+            <div class="flex items-center gap-2 mb-2 flex-shrink-0 flex-wrap">
+              <span class="text-xs font-semibold text-gray-600">📅 Dates available in:</span>
+              ${availableMonths.map(ym => {
+                const [y, m] = ym.split('-');
+                const monthObj = new Date(parseInt(y), parseInt(m) - 1, 1);
+                const label = monthObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                const isViewing = currentViewMonth.getFullYear() === parseInt(y) && currentViewMonth.getMonth() === parseInt(m) - 1;
+                const dateCount = dates.filter(d => d.date.startsWith(ym)).length;
+                return `
+                  <button 
+                    onclick="currentViewMonth = new Date(${y}, ${parseInt(m) - 1}, 1); renderMainPage();"
+                    class="px-2.5 py-1 rounded-full text-xs font-medium transition ${
+                      isViewing 
+                        ? 'bg-blue-600 text-white shadow-sm' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-700'
+                    }"
+                  >
+                    ${label} (${dateCount})
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          ` : ''}
 
+          <!-- Main Layout -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 flex-1 min-h-0 overflow-hidden">
+            
+            <!-- LEFT: Calendar + Selected Slots -->
+            <div class="bg-white rounded-lg shadow-md p-3 flex flex-col overflow-hidden">
               ${renderCalendar(dates)}
             </div>
 
-            <!-- RIGHT: Time Slots -->
-            <div class="bg-white rounded-xl shadow-md p-3 h-full overflow-hidden flex flex-col">
-              <h2 class="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
-                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                Step 2: Select Time Slot(s)
-              </h2>
+            <!-- RIGHT: Time Slots + Confirm -->
+            <div class="bg-white rounded-lg shadow-md p-3 flex flex-col overflow-hidden">
+              <div class="text-sm font-semibold text-gray-800 mb-1">
+                ${selectedDate ? (() => {
+                  const d = new Date(selectedDate + 'T00:00:00');
+                  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+                })() : 'Select a date'}
+              </div>
+              <p class="text-xs text-gray-500 mb-2">Click to select time slots</p>
 
               ${selectedDate ? renderTimeSlots() : `
-                <div class="text-center py-16 text-gray-400">
-                  <svg class="w-16 h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                  <p class="text-sm">Select a date to view available time slots</p>
+                <div class="flex-1 flex items-center justify-center text-gray-400">
+                  <div class="text-center">
+                    <svg class="w-10 h-10 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <p class="text-xs">Select dates from calendar</p>
+                  </div>
                 </div>
               `}
-            </div>
-          </div>
 
-          <!-- Confirm Button - CENTERED BELOW GRID -->
-          <div class="mt-2 pb-2 flex justify-center">
-            <button 
-              onclick="confirmAvailability()" 
-              ${totalSelected === 0 ? 'disabled' : ''}
-              class="px-6 py-2.5 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg ${
-                totalSelected > 0 
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700' 
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              Confirm My Availability
-            </button>
+              <!-- Confirm Button -->
+              <button 
+                onclick="confirmAvailability()" 
+                ${totalSelected === 0 ? 'disabled' : ''}
+                class="w-full py-2.5 rounded-lg text-center font-bold text-sm flex items-center justify-center gap-2 transition-all mt-auto flex-shrink-0 ${
+                  totalSelected > 0 
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md' 
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Confirm My Availability
+              </button>
+            </div>
           </div>
         </div>
       `;
@@ -471,28 +528,24 @@
       });
 
       return `
-        <div class="mb-2 pb-1 border-b border-gray-200">
-          <p class="text-sm text-gray-700 font-semibold">${dateString}</p>
-          <p class="text-xs text-gray-500">Select 1-hour slots</p>
-        </div>
-        <div class="grid grid-cols-2 gap-2 overflow-y-auto pr-1" style="max-height: 350px;">
-          ${hourlySlots.map(timeSlot => {
-            const isSelected = selected.some(s => s.start === timeSlot.start);
-            return `
-              <button 
-                onclick="toggleTimeSlot('${selectedDate}', '${timeSlot.start}', '${timeSlot.end}', '${timeSlot.display}')"
-                class="time-slot p-2 rounded-lg border-2 text-center font-semibold text-sm transition ${
-                  isSelected 
-                    ? 'bg-gradient-to-br from-blue-600 to-indigo-600 border-blue-600 text-white shadow-md' 
-                    : 'bg-white border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
-                }"
-              >
-                <div class="text-xs ${isSelected ? 'text-blue-100' : 'text-gray-500'}">🕒</div>
-                <div class="leading-tight">${timeSlot.display}</div>
-                ${isSelected ? '<div class="text-xs text-blue-100 mt-1">✓</div>' : ''}
-              </button>
-            `;
-          }).join('')}
+        <div class="flex flex-col flex-1 min-h-0">
+          <div class="grid grid-cols-2 gap-1.5 overflow-y-auto flex-1 pr-1">
+            ${hourlySlots.map(timeSlot => {
+              const isSelected = selected.some(s => s.start === timeSlot.start);
+              return `
+                <button 
+                  onclick="toggleTimeSlot('${selectedDate}', '${timeSlot.start}', '${timeSlot.end}', '${timeSlot.display}')"
+                  class="time-slot px-2 py-1.5 rounded border text-center text-xs font-medium transition ${
+                    isSelected 
+                      ? 'bg-blue-600 border-blue-600 text-white' 
+                      : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
+                  }"
+                >
+                  ${timeSlot.display} ${isSelected ? '✓' : ''}
+                </button>
+              `;
+            }).join('')}
+          </div>
         </div>
       `;
     }

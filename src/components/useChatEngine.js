@@ -335,11 +335,28 @@ export function useChatEngine({ snapshot, refreshSnapshot, currentUser, toast })
     addMsg({ role: "assistant", kind: "text", content: "Cancelled. What else should I schedule?" });
   }, [addMsg]);
 
+  // Schedule anyway - bypass slot check, go directly to confirm preview
+  const scheduleAnyway = useCallback((interviewer, slots, candidate) => {
+    addMsg({ role: "user", kind: "text", content: `Schedule anyway with ${interviewer.name}` });
+    const confirmMsg = {
+      role: "assistant",
+      kind: "confirm",
+      slots,
+      candidate,
+      interviewer,
+      slot: { slot_date: slots.date, start_time: slots.time.start, end_time: slots.time.end },
+      auto_picked: false,
+      forced: true
+    };
+    addMsg(confirmMsg);
+    setPending(confirmMsg);
+  }, [addMsg]);
+
   return {
     messages, input, setInput, thinking, pending,
     send, reset,
     selectCandidate, selectInterviewer, selectAlternative,
-    chooseNearbySlot, addConfirmedSlot,
+    chooseNearbySlot, addConfirmedSlot, scheduleAnyway,
     acceptWrongRound, declineWrongRound,
     confirmSchedule, cancelConfirm
   };

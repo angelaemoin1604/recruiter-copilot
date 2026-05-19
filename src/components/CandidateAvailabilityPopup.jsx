@@ -9,6 +9,7 @@ export default function CandidateAvailabilityPopup({ candidate, job, onClose, on
   const isDraggingRef = useRef(false); // Use ref for immediate sync
   const dragStartRef = useRef(null); // Use ref for immediate sync
   const hoveredDateRef = useRef(null);
+  const committedDatesRef = useRef([]); // Stores dates from previous drag operations
   const [showYearPicker, setShowYearPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [tempYear, setTempYear] = useState(null);
@@ -32,7 +33,7 @@ export default function CandidateAvailabilityPopup({ candidate, job, onClose, on
       if (isDraggingRef.current) {
         const clickedInsideCalendar = e.target.closest('button');
         if (!clickedInsideCalendar) {
-          console.log('  → OUTSIDE calendar - resetting drag');
+          console.log('  → OUTSIDE calendar - committing and resetting drag');
           isDraggingRef.current = false;
           dragStartRef.current = null;
         } else {
@@ -165,6 +166,7 @@ export default function CandidateAvailabilityPopup({ candidate, job, onClose, on
 
   const removeSlot = (dateStr) => {
     setSelectedDates(prev => prev.filter(d => d !== dateStr));
+    committedDatesRef.current = committedDatesRef.current.filter(d => d !== dateStr);
   };
 
   return (
@@ -353,23 +355,21 @@ export default function CandidateAvailabilityPopup({ candidate, job, onClose, on
                         console.log('  day.dateStr:', day.dateStr);
                         console.log('  Are they equal?', selectedDates[0] === day.dateStr);
                         
-                        // CASE 1: Drag is active - END it
+                        // CASE 1: Drag is active - END it and COMMIT current selection
                         if (currentlyDragging && currentDragStart) {
                           console.log('  → CASE 1: END DRAG at:', day.dateStr);
                           isDraggingRef.current = false;
                           dragStartRef.current = null;
-                          // Range already set by hover, just end drag
+                          // Commit all currently selected dates
+                          committedDatesRef.current = [...selectedDates];
                           return;
                         }
                         
-                        // CASE 2: Clicking same single date again (e.g., 19 then 19) - keep it selected
+                        // CASE 2: Clicking same single date again - DESELECT it
                         if (isSelected && selectedDates.length === 1 && selectedDates[0] === day.dateStr) {
-                          console.log('  → CASE 2: Clicking same single date, keep selected');
-                          // Don't remove it, treat as starting new drag
-                          isDraggingRef.current = true;
-                          dragStartRef.current = day.dateStr;
-                          console.log('  → IMMEDIATELY AFTER SETTING: isDraggingRef.current =', isDraggingRef.current);
-                          console.log('  → IMMEDIATELY AFTER SETTING: dragStartRef.current =', dragStartRef.current);
+                          console.log('  → CASE 2: Deselecting single date');
+                          setSelectedDates([]);
+                          committedDatesRef.current = committedDatesRef.current.filter(d => d !== day.dateStr);
                           return;
                         }
                         
@@ -377,6 +377,7 @@ export default function CandidateAvailabilityPopup({ candidate, job, onClose, on
                         if (isSelected && !currentlyDragging) {
                           console.log('  → CASE 3: REMOVE date:', day.dateStr);
                           setSelectedDates(prev => prev.filter(d => d !== day.dateStr));
+                          committedDatesRef.current = committedDatesRef.current.filter(d => d !== day.dateStr);
                           return;
                         }
                         
@@ -384,7 +385,9 @@ export default function CandidateAvailabilityPopup({ candidate, job, onClose, on
                         console.log('  → CASE 4: START DRAG from:', day.dateStr);
                         isDraggingRef.current = true;
                         dragStartRef.current = day.dateStr;
-                        setSelectedDates([day.dateStr]);
+                        // KEEP committed dates, add new one
+                        const newDates = [...new Set([...committedDatesRef.current, day.dateStr])];
+                        setSelectedDates(newDates);
                         
                         console.log('  After setting: isDraggingRef.current =', isDraggingRef.current);
                         console.log('  After setting: dragStartRef.current =', dragStartRef.current);
@@ -403,7 +406,9 @@ export default function CandidateAvailabilityPopup({ candidate, job, onClose, on
                             const minIdx = Math.min(startIdx, endIdx);
                             const maxIdx = Math.max(startIdx, endIdx);
                             const rangeSelected = allDates.slice(minIdx, maxIdx + 1);
-                            setSelectedDates(rangeSelected);
+                            // MERGE with committed dates from previous drags
+                            const merged = [...new Set([...committedDatesRef.current, ...rangeSelected])];
+                            setSelectedDates(merged);
                           }
                         }
                       }}
@@ -412,11 +417,12 @@ export default function CandidateAvailabilityPopup({ candidate, job, onClose, on
                         h-8 w-full rounded transition-all flex items-center justify-center text-xs font-medium select-none
                         ${!day.isCurrentMonth ? 'text-slate-300 cursor-not-allowed bg-slate-50' : ''}
                         ${day.isPast && day.isCurrentMonth ? 'text-slate-400 cursor-not-allowed bg-slate-100' : ''}
-                        ${isTodayDate && !isSelected && !hasConfirmedSlot ? 'ring-2 ring-orange-400 bg-orange-50' : ''}
-                        ${hasConfirmedSlot && !isSelected ? 'ring-2 ring-green-500 bg-green-50' : ''}
+                        ${isTodayDate && !isSelected ? 'ring-2 ring-orange-400' : ''}
+                        ${hasConfirmedSlot && !isSelected ? 'bg-green-50 text-green-700 font-semibold border border-green-400' : ''}
+                        ${!hasConfirmedSlot && isTodayDate && !isSelected ? 'bg-orange-50' : ''}
                         ${isSelected 
                           ? 'bg-gradient-to-br from-blue-700 to-indigo-700 text-white font-bold shadow-md' 
-                          : !isDisabled 
+                          : !isDisabled && !hasConfirmedSlot
                             ? 'bg-white border border-slate-300 hover:bg-blue-50 hover:border-blue-400' 
                             : ''
                         }
@@ -431,15 +437,15 @@ export default function CandidateAvailabilityPopup({ candidate, job, onClose, on
               {/* Compact Legend */}
               <div className="mt-2 text-[10px] text-slate-600 space-y-1">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-700 to-indigo-700 ring-2 ring-blue-700"></div>
+                  <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-700 to-indigo-700"></div>
                   <span>Selected dates</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded bg-white ring-2 ring-green-500"></div>
-                  <span>Candidate confirmed slot</span>
+                  <div className="w-4 h-4 rounded bg-green-50 border border-green-400"></div>
+                  <span>Candidate confirmed</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded bg-white ring-2 ring-orange-400"></div>
+                  <div className="w-4 h-4 rounded ring-2 ring-orange-400 bg-orange-50"></div>
                   <span>Today</span>
                 </div>
               </div>
