@@ -201,10 +201,15 @@ export default function RippleHireReplica({ db, snapshot, currentUser, onOpenRec
       {/* Floating chatbot circle */}
       <button
         onClick={() => setChatOpen(true)}
-        className={`fixed bottom-6 right-6 z-40 w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full shadow-2xl shadow-blue-500/40 flex items-center justify-center text-white hover:scale-110 transition group ${pulse ? "animate-pulse-ring" : ""}`}
+        className={`fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition group ${pulse ? "animate-pulse-ring" : ""}`}
+        style={{
+          background: "linear-gradient(135deg, #ffffff 0%, #f0f4ff 100%)",
+          boxShadow: "0 8px 32px rgba(59, 130, 246, 0.35), 0 2px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)"
+        }}
         aria-label="Open Recruiter Copilot chatbot"
       >
-        <MessageCircle size={24} />
+        <img src="/logo.png" alt="RippleHire" className="w-8 h-8 object-contain" style={{ marginTop: "1px" }} />
+        <div className="absolute inset-0 rounded-full border-2 border-blue-200/60"></div>
         <span className="absolute right-full mr-3 whitespace-nowrap bg-slate-900 text-white text-xs px-3 py-1.5 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition pointer-events-none">
           Schedule with Recruiter Copilot
         </span>
