@@ -34,6 +34,7 @@ export default function App() {
   const handleLogin = (user) => {
     setCurrentUser(user);
     setView("replica");
+    refreshSnapshot(); // ✅ FIXED: Reload data now that recruiter is logged in via Supabase Auth
   };
 
   const handleLogout = () => {

@@ -3,9 +3,7 @@
 // ============================================================
 import { useState } from "react";
 import { Eye, EyeOff, AlertCircle, Lock, Mail } from "lucide-react";
-
-const VALID_EMAIL = "recruiter@sandbox.com";
-const VALID_PASSWORD = "Ripplehire123";
+import { supabase } from "../supabase.jsx";
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState("");
@@ -28,15 +26,20 @@ export default function Login({ onLogin }) {
     if (bad) return;
 
     setLoading(true);
-    await new Promise(r => setTimeout(r, 600));
+
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password: password
+    });
+
     setLoading(false);
 
-    if (email.trim().toLowerCase() === VALID_EMAIL && password === VALID_PASSWORD) {
-      onLogin({ email: email.trim().toLowerCase(), name: "Angela Michael Emoin", id: "REC0001" });
-    } else {
+    if (authError) {
       setError("Invalid email or password. Use recruiter@sandbox.com / Ripplehire123");
       setShake(true);
       setTimeout(() => setShake(false), 500);
+    } else {
+      onLogin({ email: data.user.email, name: "Angela Michael Emoin", id: "REC0001" });
     }
   };
 
@@ -48,7 +51,7 @@ export default function Login({ onLogin }) {
       <div className="absolute top-1/2 left-1/2 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl animate-blob-3" />
 
       <div className={`relative w-full max-w-md ${shake ? "animate-shake" : ""}`}>
-        {/* Logo - REPLACED WITH RIPPLEHIRE LOGO */}
+        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
             <img src="/logo.png" alt="RippleHire" className="w-12 h-12 rounded-xl shadow-lg" />
